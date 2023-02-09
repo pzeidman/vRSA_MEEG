@@ -26,8 +26,8 @@ vRSA_demo_preprocess;
 % Generate an informed basis set derived from DCMs
 vRSA_demo_create_basis_set;
 
-% Run vRSA analyses with different priors to optimise the model
-vRSA_demo_select_priors;
+% Run vRSA analyses with different priors to optimise the model (SLOW)
+%vRSA_demo_select_priors;
 
 % Run vRSA analysis
 vRSA_demo_run_vRSA;
