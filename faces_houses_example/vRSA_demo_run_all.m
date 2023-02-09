@@ -9,8 +9,6 @@
 % Data downloaded from:
 % https://purl.stanford.edu/xd109qh3109
 % 
-% NB run preprocess.m before running this script
-%
 % Peter Zeidman
 %% Settings
 subjects = {'ca','de','fp','ja','mv','wc','zt'};
