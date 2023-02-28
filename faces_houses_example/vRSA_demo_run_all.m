@@ -127,8 +127,9 @@ title('Basis functions','FontSize',16);
 
 nbf = size(bf,2);
 figure;
+ax = [];
 for i = 1:nbf
-    subplot(nbf,1,i);
+    ax(i)=subplot(nbf,1,i);
     plot(pst,bf(:,i));
     xline(0);
     set(gca,'FontSize',12);
@@ -136,8 +137,24 @@ for i = 1:nbf
         title('Basis functions','FontSize',16);
     end
 end
+linkaxes(ax);
 xlabel('Time (ms)');
+%% Illustrate 2nd order parameters
+load('subjects/basis_set.mat');
 
+nbf = size(bf,2);
+
+figure;
+ax = [];
+for i = 1:nbf
+    BB = RSA{i}.BB;
+    
+    ax(i) = subplot(1,nbf,i);
+    imagesc(BB);
+    colormap gray;
+    axis square;
+end
+linkaxes(ax);
 %% Illustrate basis set fit to one subject's per-channel data
 load('subjects/basis_set.mat');
 
@@ -246,6 +263,9 @@ xlabel('\lambda'); ylabel('P(\lambda)');
 set(gca,'FontSize',12);
 title('Noise','FontSize',16);
 axis square
+%% Plot within-subject model evidences
+load('subjects/RSA_s1.mat');
+spm_eeg_rsa_review(RSA);
 %% Plot reconstructed ERP (single subject level)
 load('subjects/basis_set.mat');
 load('subjects/RSA_s1.mat');
@@ -278,7 +298,6 @@ axis square;
 set(gca,'FontSize',12);
 legend({'Faces-Houses','Random'});
 title('Reconstructed','FontSize',14);
-
 
 %% Plot results of search over different priors
 load('subjects/priors_selection.mat');
