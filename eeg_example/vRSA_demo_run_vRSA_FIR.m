@@ -1,0 +1,123 @@
+%% vRSA Example Script: vRSA with FIR basis set
+%
+% This script demonstrates how to perform time-resolved 
+% variational Representational Similarity Analysis (vRSA) using a Finite
+% impulse response to characterize the contribution of experimental
+% contrasts on the second order statistics of the data within particular
+% time windows (defined by the FIR). 
+% 
+% *vRSA Overview*
+% - Models the observed trial-by-trial covariance as a linear combination 
+%   of model covariance components, each scaled by a log-space parameter 
+%   (lambda).
+% - Variational Laplace provides posterior estimates of these parameters 
+%   and an approximation to the model evidence (free energy).
+%
+% *Time-Resolved vRSA*
+% - For each trial/condition/channel, we first obtain beta parameters by 
+%   projecting the data onto specified basis functions
+% - In this example, the basis functions are FIR time bins, enabling to
+%   investigate the contribution of experimental contrasts in a (semi) time
+%   resolved fashion
+% - We then construct a trial-by-trial covariance matrix from those betas 
+%   and decompose it into user-specified model covariance structures.
+%
+% *Single subject vRSA*
+% - The trial by trial beta covariance matrices capture the trial by trial
+%   covariance of the temporal dynamics encoded by each basis function in
+%   the basis set. 
+% - For each subject, each covariance matrix (i.e. for each basis function)
+%   is decomposed as a linear mixture of the experimental contrasts using a
+%   GLM. The lambda weights are estimated using restricted maximum
+%   likelihood, yielding a posterior distribution for each 
+% 
+% *Group-Level Analysis*
+% - Parametric Empirical Bayes (PEB) then combines these subject-level results 
+%   into a group-level analysis.
+%
+% Data for this example are from:
+%    Miller, K.J., Schalk, G., Hermes, D., Ojemann, J.G. and Rao, R.P., 2016. 
+%    Spontaneous decoding of the timing and content of human object perception 
+%    from cortical surface recordings reveals complementary information in the 
+%    event-related potential and broadband spectral change. 
+%    PLoS Computational Biology, 12(1), p.e1004660.
+%
+%
+% Author:      Peter Zeidman, Alex Lepauvre
+% Date:        2025-02-14
+% Version:     1.0
+
+%% Settings
+subjects = {'S1','S2','S3','S4','S5','S6','S7', 'S8', 'S9','S10'};
+subject = 1;
+D = spm_eeg_load(sprintf('subjects/RmD_%s.mat',subjects{subject}));
+[nmodes,ntimes,nstimuli] = size(D(:,:,:));  
+
+%% RSA settings
+% Get binary vectors of each condition:
+is_human = double(contains(D.conditions,'Human'));
+is_animal = double(contains(D.conditions,'Animal'));
+is_face = double(contains(D.conditions,'Face'));
+is_body = double(contains(D.conditions,'Body'));
+is_natural = double(contains(D.conditions,'Natural'));
+is_manmade = double(contains(D.conditions,'ManMade'));
+
+% Define contrasts:
+c = zeros(nstimuli, 5);
+c(:, 1) = is_human + is_animal - (is_natural + is_manmade); % Animate vs. inanimate
+c(:, 2) = is_human - is_animal; % Human vs. animal
+c(:, 3) = is_face - is_body; % Body vs. face
+c(:, 4) = is_natural - is_manmade; % Natural vs. manmade
+c(:, 5) = c(:, 2) .* c(:, 3); % Interaction between body part and species
+
+% Add conditions names:
+cnames = {};
+cnames{1} = 'Animate - Inanimate';   
+cnames{2} = 'Human - Animal';   
+cnames{3} = 'Face - Body';   
+cnames{4} = 'Natural - Manmade';   
+cnames{5} = 'Species * Body';   
+
+% Create FIR with bins of 50ms:
+xBF = struct();  
+xBF.dt = 1 / D.fsample;  % Sampling rate
+xBF.name = 'Finite Impulse Response';
+xBF.length = size(D, 2) * xBF.dt;
+xBF.order  = 16;
+xBF = spm_get_bf(xBF);
+Xt = xBF.bf(1:size(D, 2), 2:end);
+
+% RSA settings
+S = struct();
+S.Xt = Xt;
+S.con_c = mat2cell(c, size(c, 1), ones(1, size(c, 2)));
+S.con_c_names = cnames;
+S.pE = -8;
+S.pV = 16;
+%% Fit an examplar subject
+RSA = spm_eeg_rsa_specify(S,D);
+RSA = spm_eeg_rsa_estimate(RSA);
+save(sprintf('subjects/RSA_s%d.mat',subject),'RSA','-v7.3');
+% Computing the time axis of the FIR:
+spm_eeg_rsa_review(RSA, FIR_bf=true, t=D.time', data=D(:, :, :));
+%% Run first level analysis on group-level empirical data
+nbases = size(Xt,2);
+RSAs = cell(length(subjects),nbases);
+for s = 1:length(subjects)
+    disp(subjects{s});
+    % Load data    
+    D = spm_eeg_load(sprintf('subjects/RmD_%s.mat',subjects{s}));
+    % RSA settings
+    settings = S;
+    % Specify and estimate
+    RSAs(s,:) = spm_eeg_rsa_specify(settings,D);    
+    RSAs(s,:) = spm_eeg_rsa_estimate(RSAs(s,:));
+end
+save('subjects/RSAs.mat','RSAs','-v7.3');
+%% Run second level analysis
+load('subjects/RSAs.mat');
+
+% Run PEB / BMC
+[PEB,F] = spm_eeg_rsa_peb(RSAs, params=[1, 2, 3, 4, 5], FIR_bf=true, t=D.time');
+
+save('subjects/PEB.mat','F','PEB');
