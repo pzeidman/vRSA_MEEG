@@ -1,4 +1,4 @@
-function [RSAs,F,Pp] = spm_eeg_rsa_specify(S,D)
+function [RSAs] = spm_eeg_rsa_specify(S,D)
 % Specifies a variational Representational Similarity Analysis (RSA) model
 %
 % Overview of vRSA
@@ -64,6 +64,7 @@ RSA.M.nXt         = nXt;
 
 % Optional inputs
 try con_c_names = S.con_c_names; catch, con_c_names = {}; end
+try Xt_names = S.Xt_names; catch, Xt_names = {}; end
 try pE          = S.pE;          catch, pE = -16; end
 try pV          = S.pV;          catch, pV = 128; end
 try X0 = S.X0; catch, X0 = ones(ntimes*nconditions,1); end
@@ -73,6 +74,12 @@ if ~iscell(con_c), con_c = {con_c}; end
 if isempty(con_c_names)
     for i = 1:length(con_c)
         con_c_names{i} = sprintf('Contrast %d',i);
+    end
+end
+
+if isempty(nXt)
+    for i = 1:nXt
+        Xt_names{i} = sprintf('BF %d',i);
     end
 end
 
@@ -87,7 +94,7 @@ Y = D(:,:,:);
 % (saves having a constant regressor in the basis set)
 for m = 1:nmodes
     for c = 1:nconditions
-        Y(m,:,c) = Y(m,:,c) - mean(Y(m,:,c));
+        Y(m,:,c) = Y(m,:,c) - mean(Y(m,:,:), "all");
     end
 end
 
@@ -197,6 +204,7 @@ RSA.M.pE = pE;         % prior expectation of parameters
 RSA.M.pC = pC;         % prior covariances of parameters
 RSA.M.X  = X;          % design matrix
 RSA.M.Xt = Xt;         % within-trial design matrix
+RSA.M.Xt_names = Xt_names; % Name of the basis functions
 RSA.M.bf = bf;         % indices of basis functions within design
 RSA.M.X0 = X0;         % null design matrix
 RSA.M.Nv = Nv;         % spatial degrees of freedom
