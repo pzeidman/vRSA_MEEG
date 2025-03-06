@@ -36,12 +36,12 @@
 %   into a group-level analysis.
 %
 % Data for this example are from:
-%    Miller, K.J., Schalk, G., Hermes, D., Ojemann, J.G. and Rao, R.P., 2016. 
-%    Spontaneous decoding of the timing and content of human object perception 
-%    from cortical surface recordings reveals complementary information in the 
-%    event-related potential and broadband spectral change. 
-%    PLoS Computational Biology, 12(1), p.e1004660.
+%   Kaneshiro, Blair, et al. "A representational similarity analysis of the 
+%   dynamics of object processing using single-trial EEG classification." 
+%   Plos one 10.8 (2015): e0135697.
 %
+% Data downloaded from:
+% https://purl.stanford.edu/bq914sc3730
 %
 % Author:      Peter Zeidman, Alex Lepauvre
 % Date:        2025-02-14
@@ -92,8 +92,9 @@ S = struct();
 S.Xt = Xt;
 S.con_c = mat2cell(c, size(c, 1), ones(1, size(c, 2)));
 S.con_c_names = cnames;
-S.pE = -8;
-S.pV = 16;
+S.pE = -4;
+S.pV = 2;
+
 %% Fit an examplar subject
 RSA = spm_eeg_rsa_specify(S,D);
 RSA = spm_eeg_rsa_estimate(RSA);

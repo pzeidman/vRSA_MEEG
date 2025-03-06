@@ -24,16 +24,17 @@
 % In addition, the script plots all the figures presented in the paper
 % 
 % Data for this example are from:
-% Miller, K.J., Schalk, G., Hermes, D., Ojemann, J.G. and Rao, R.P., 2016.
-% Spontaneous decoding of the timing and content of human object perception
-% from cortical surface recordings reveals complementary information in the
-% event-related potential and broadband spectral change.
-% PLoS computational biology, 12(1), p.e1004660.
+%   Kaneshiro, Blair, et al. "A representational similarity analysis of the 
+%   dynamics of object processing using single-trial EEG classification." 
+%   Plos one 10.8 (2015): e0135697.
 %
 % Data downloaded from:
-% https://purl.stanford.edu/xd109qh3109
+% https://purl.stanford.edu/bq914sc3730
 %
-% Peter Zeidman
+% Author:      Peter Zeidman, Alex Lepauvre
+% Date:        2025-02-14
+% Version:     1.0
+
 %% Settings
 subjects = {'S1','S2','S3','S4','S5','S6','S7', 'S8', 'S9','S10'};
 
@@ -42,11 +43,12 @@ spm('defaults','eeg');
 spm_jobman('initcfg');
 %% Run analyses
 % Pre-process EEG data
-vRSA_demo_preprocess;
+% vRSA_demo_preprocess;
 
 % Select the priors (Takes a while)
-% vRSA_demo_select_priors;
-
+if ~exist('priors.mat', 'file')
+    vRSA_demo_select_priors;
+end
 % Run simulation (to show face validity of the pipeline with selected
 % priors)
 vRSA_demo_run_vRSA_simulation;

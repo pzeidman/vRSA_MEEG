@@ -7,11 +7,12 @@
 % the pipeline to retrieve the parameters.
 % 
 % Data for this example are from:
-%    Miller, K.J., Schalk, G., Hermes, D., Ojemann, J.G. and Rao, R.P., 2016. 
-%    Spontaneous decoding of the timing and content of human object perception 
-%    from cortical surface recordings reveals complementary information in the 
-%    event-related potential and broadband spectral change. 
-%    PLoS Computational Biology, 12(1), p.e1004660.
+%   Kaneshiro, Blair, et al. "A representational similarity analysis of the 
+%   dynamics of object processing using single-trial EEG classification." 
+%   Plos one 10.8 (2015): e0135697.
+%
+% Data downloaded from:
+% https://purl.stanford.edu/bq914sc3730
 %
 % Author:      Peter Zeidman, Alex Lepauvre
 % Date:        2025-02-14
@@ -57,6 +58,16 @@ xBF.order  = 16;
 xBF = spm_get_bf(xBF);
 Xt = xBF.bf(1:size(D, 2), 2:end);
 
+% RSA settings:
+S = struct();
+S.Xt = Xt;
+S.con_c = mat2cell(c, size(c, 1), ones(1, size(c, 2)));
+S.con_c_names = cnames;
+S.pE = -4;
+S.pV = 2;
+
+%% Run vRSA on simulated data
+
 % Simulate the data:
 CV = zeros(size(Xt, 2), size(c, 2)); % Controls which effects are on and which are off: time bin x contrast
 CV(4, 5) = 1; % Turn the first contrast on in 3r to 5th time window
@@ -64,13 +75,6 @@ CV(6, 1) = 1; % Turn the second contrast on in the 6th to 8th time window
 s = 0.14;
 Y = spm_eeg_simulate_covariance(Xt, c, s, nmodes, length(subjects), CV);
 
-%% Run vRSA with priors estimated from automated prior selection procedure
-S = struct();
-S.Xt = Xt;
-S.con_c = mat2cell(c, size(c, 1), ones(1, size(c, 2)));
-S.con_c_names = cnames;
-S.pE = -8;
-S.pV = 16;
 nbases = size(Xt,2);
 RSAs = cell(length(subjects),nbases);
 for s = 1:length(subjects)
@@ -89,16 +93,3 @@ save('subjects/RSAs-sim.mat','RSAs','-v7.3');
 
 % Save the results
 save('subjects/PEB-sim.mat','F','PEB');
-
-% Take the sum of evidence for the whole model in each subject:
-F0 = sum(cellfun(@(x) x.F0, RSAs), 2);
-% Plot the results
-figure;
-bar(F0, 'k')
-xlabel('Subjects')
-ylabel('Log BF')
-title('Simulation evidence for each subject')
-set(gca, 'FontSize',12);
-figHandles = findobj('Type', 'figure'); % Find all open figures
-saveas(figHandles(1), 'Figure_5-3.svg'); % Save as svg
-fprintf('\n Simulation evidence range between %0.2f and %0.2f across subjects',  min(F0), max(F0))
