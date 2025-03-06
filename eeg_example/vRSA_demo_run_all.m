@@ -43,7 +43,7 @@ spm('defaults','eeg');
 spm_jobman('initcfg');
 %% Run analyses
 % Pre-process EEG data
-% vRSA_demo_preprocess;
+vRSA_demo_preprocess;
 
 % Select the priors (Takes a while)
 if ~exist('priors.mat', 'file')

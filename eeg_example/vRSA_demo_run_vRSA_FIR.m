@@ -52,6 +52,7 @@ subjects = {'S1','S2','S3','S4','S5','S6','S7', 'S8', 'S9','S10'};
 subject = 1;
 D = spm_eeg_load(sprintf('subjects/RmD_%s.mat',subjects{subject}));
 [nmodes,ntimes,nstimuli] = size(D(:,:,:));  
+rng(51); % Set seed
 
 %% RSA settings
 % Get binary vectors of each condition:
@@ -92,9 +93,14 @@ S = struct();
 S.Xt = Xt;
 S.con_c = mat2cell(c, size(c, 1), ones(1, size(c, 2)));
 S.con_c_names = cnames;
-S.pE = -4;
-S.pV = 2;
-
+if exist('priors.mat', 'file')
+    load('priors.mat')
+    S.pE = priors.pE;
+    S.pV = priors.pV;
+else
+    S.pE = -4;
+    S.pV = 8;
+end
 %% Fit an examplar subject
 RSA = spm_eeg_rsa_specify(S,D);
 RSA = spm_eeg_rsa_estimate(RSA);
