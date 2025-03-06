@@ -94,7 +94,7 @@ Y = D(:,:,:);
 % (saves having a constant regressor in the basis set)
 for m = 1:nmodes
     for c = 1:nconditions
-        Y(m,:,c) = Y(m,:,c) - mean(Y(m,:,:), "all");
+        Y(m,:,c) = Y(m,:,c) - mean(Y(m,:,c));
     end
 end
 
