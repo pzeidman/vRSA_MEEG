@@ -16,8 +16,8 @@ x_norm = linspace(x_norm_min, x_norm_max, 1000);
 pdf_norm = normpdf(x_norm, mu_val, sigma);
 
 % Define x range for Lognormal (99% probability mass
-x_log_max = logninv(0.9, mu_val, sigma);
-x_log = linspace(0, x_log_max, 1000);
+x_log_max = logninv(0.65, mu_val, sigma);
+x_log = linspace(-0.5, x_log_max, 1000);
 
 % Compute lognormal PDF
 pdf_log = lognpdf(x_log, mu_val, sigma);
