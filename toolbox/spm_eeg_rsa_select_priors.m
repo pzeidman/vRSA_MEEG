@@ -1,4 +1,4 @@
-function [pV, pE] = spm_eeg_rsa_select_priors(c, bf, s, nmodes, nconditions, nsub,  options)
+function [pE, pV] = spm_eeg_rsa_select_priors(c, bf, s, nmodes, nconditions, nsub,  options)
 % Grid search for optimal priors in RSA-based EEG analysis.
 %
 % This function performs a grid search over prior expectations and variances 
