@@ -162,7 +162,7 @@ colormap gray; colorbar; set(gca, 'FontSize',12);
 
 % Plot the sum of the two:
 nexttile()
-imagesc(F_on); xticks(1:length(lbl_pE)); yticks(1:length(lbl_pV)); xticklabels(lbl_pE); yticklabels(lbl_pV)
+imagesc(sum_F); xticks(1:length(lbl_pE)); yticks(1:length(lbl_pV)); xticklabels(lbl_pE); yticklabels(lbl_pV)
 xlabel("pE"); ylabel("pV"); title('Sum of evidence'); axis square;
 colormap gray; colorbar; set(gca, 'FontSize',12);
 
