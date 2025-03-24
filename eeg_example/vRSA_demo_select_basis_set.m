@@ -13,7 +13,7 @@ nsamples = length(y);
 
 % Orders of Fourier series to try. NB we go one higher than maximum here to
 % demonstrate that Matlab's log-likelihood function is working correctly.
-orders = 1:ceil(nsamples/2);
+orders = 1:ceil(nsamples/4);
 
 % Fit GLMs with fourier basis functions of increasing order
 AIC = [];
