@@ -1,7 +1,7 @@
 % Example vRSA analysis of EEG data
 % 
 % In this script, we perform the entire pipeline of the vRSA toolbox. To
-% investigate which experimental contrasts are experessed in the second
+% investigate which experimental contrasts are expressed in the second
 % order statistics of the data (i.e. which model matrices are are
 % represented in the multivariate patterns of the data in representational
 % analysis (RSA) linguo), we perform the following steps:
@@ -28,7 +28,7 @@
 %   dynamics of object processing using single-trial EEG classification." 
 %   Plos one 10.8 (2015): e0135697.
 %
-% Data downloaded from:
+% Data URL:
 % https://purl.stanford.edu/bq914sc3730
 %
 % Author:      Peter Zeidman, Alex Lepauvre
@@ -36,19 +36,38 @@
 % Version:     1.0
 
 %% Settings
-subjects = {'S1','S2','S3','S4','S5','S6','S7', 'S8', 'S9','S10'};
+%subjects = {'S1','S2','S3','S4','S5','S6','S7', 'S8', 'S9','S10'};
+subjects = {'S1'};
 
 % Initialize SPM in EEG mode
 spm('defaults','eeg');
 spm_jobman('initcfg');
+%% Download the data
+% NB if this download hangs, try using your browser to downlaod the data
+% manually and save it in a folder called 'raw_data'
+
+% Make output folder
+out_dir = 'raw_data';
+if ~exist(out_dir,'file')
+    mkdir(out_dir);
+end
+
+disp('Downloading data...');
+for i = 1:length(subjects)    
+    fname = fullfile(out_dir,sprintf('%s.mat',subjects{i}));
+    url   = sprintf('https://stacks.stanford.edu/file/bq914sc3730/%s.mat',subjects{i});
+    websave(fname, url);    
+end
+disp('Done');
 %% Run analyses
 % Pre-process EEG data
-vRSA_demo_preprocess;
+vRSA_demo_preprocess(subjects);
 
 % Select the priors (Takes a while)
 if ~exist('priors.mat', 'file')
     vRSA_demo_select_priors;
 end
+
 % Run simulation (to show face validity of the pipeline with selected
 % priors)
 vRSA_demo_run_vRSA_simulation;

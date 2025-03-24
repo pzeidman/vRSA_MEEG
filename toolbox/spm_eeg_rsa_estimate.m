@@ -129,6 +129,7 @@ for q = 1:nq
                                        RSA.M.pE,rC);                                       
 end
 
+% Flip: more positive = greater evidence for switching on the parameter
 logBF = -logBF;
 
 % Log bayes factor -> posterior probability

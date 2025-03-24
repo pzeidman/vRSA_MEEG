@@ -94,34 +94,42 @@ for pE_i = 1:length(pEs)
         %------------------------------------------------------------------
         % Fit RSA for each subject with current priors
         %------------------------------------------------------------------
-        RSA = cell(nsub,nXt);
+        %RSA = cell(nsub,nXt);
+        RSA = cell(nsub,1);
         for i_sub = 1:nsub
             % Convert the data to 3d:
             D = reshape(Y{i_sub}', [nmodes, size(Y{i_sub}, 1)/(nconditions), nconditions]);
             % Calculate RSA for current subject
             RSA(i_sub,:) = spm_eeg_rsa_specify(S,D);
-            RSA(i_sub,:) = spm_eeg_rsa_estimate(RSA(i_sub,:));
+            %RSA(i_sub,:) = spm_eeg_rsa_estimate(RSA(i_sub,:));
+            RSA{i_sub} = spm_eeg_rsa_estimate(RSA{i_sub});
         end
 
-        %------------------------------------------------------------------
-        % Group level evidence with PEB
-        %------------------------------------------------------------------
-        try
-            [~,F] = spm_eeg_rsa_peb(RSA, params=1:size(c, 2), FIR_bf=false, doplot=false);
-        catch
-            F_on(pV_i, pE_i) = nan;
+        if nsub > 1
+            %------------------------------------------------------------------
+            % Group level evidence with PEB
+            %------------------------------------------------------------------
+            try
+                [~,F] = spm_eeg_rsa_peb(RSA, params=1:size(c, 2), FIR_bf=false, doplot=false);
+            catch
+                F_on(pV_i, pE_i) = nan;
+                % Evidence against off effect (hence the -F)
+                F_off(pV_i, pE_i) = nan;
+                continue
+            end
+
+            %------------------------------------------------------------------
+            % Gather evidence for "on" and "off" effects
+            %------------------------------------------------------------------
+            % Evidence in favor of on effect:
+            F_on(pV_i, pE_i) = sum(F(find(CV' == 1, 1)));     % PZ: what does this do??
             % Evidence against off effect (hence the -F)
-            F_off(pV_i, pE_i) = nan;
-            continue
+            F_off(pV_i, pE_i) = sum(-F(find(~CV' == 1, 1)));
+        else
+            % Single subject analysis
+            F_on(pV_i, pE_i)  = sum(RSA{1}.logBF.cond(spm_vec(CV')==1));
+            F_off(pV_i, pE_i) = sum(RSA{1}.logBF.cond(spm_vec(CV')==0));
         end
-
-        %------------------------------------------------------------------
-        % Gather evidence for "on" and "off" effects
-        %------------------------------------------------------------------
-        % Evidence in favor of on effect:
-        F_on(pV_i, pE_i) = sum(F(find(CV' == 1, 1)));
-        % Evidence against off effect (hence the -F)
-        F_off(pV_i, pE_i) = sum(-F(find(~CV' == 1, 1)));
     end
 end
 
@@ -139,6 +147,22 @@ if ~options.doplot
 end
 
 %% Plot the results of the grid search:
+
+% Convert free energies to probabilities
+P_on = [];
+P_off = [];
+for pE_i = 1:length(pEs)    
+    for pV_i = 1:length(pVs)
+        F    = [F_on(pV_i,pE_i),0]';
+        P    = spm_softmax(F);        
+        P_on(pV_i,pE_i) = P(1);
+        
+        F    = [F_off(pV_i,pE_i),0]';
+        P    = spm_softmax(F);        
+        P_off(pV_i,pE_i) = P(1);        
+    end
+end
+
 % Create x and y labels:
 lbl_pE  = arrayfun(@(x) sprintf('%0.2f', x), pEs,...
     'UniformOutput', false); 
@@ -146,24 +170,32 @@ lbl_pV  = arrayfun(@(x) sprintf('%0.2f', x), pVs,...
     'UniformOutput', false); 
 
 fig = figure('Name', 'Prior Selection', 'Position', [10, 10, 725, 725], 'Color',[1 1 1]);
+
 % Layout for various subplots
-tiledlayout(fig, 3, 1, 'TileSpacing','compact', 'Padding','compact');
-% Plot the effects on:
+tiledlayout(fig, 3, 2, 'TileSpacing','compact', 'Padding','compact');
+
+% Plot the effects on (F):
 nexttile()
 imagesc(F_on); xticks(1:length(lbl_pE)); yticks(1:length(lbl_pV)); xticklabels(lbl_pE); yticklabels(lbl_pV)
-xlabel("pE"); ylabel("pV"); title('Effect on'); axis square;
+xlabel("pE"); ylabel("pV"); title('Effect on (F)'); axis square;
 colormap gray; colorbar; set(gca, 'FontSize',12);
 
-% Plot the effects off:
+% P:
+nexttile()
+imagesc(P_on); xticks(1:length(lbl_pE)); yticks(1:length(lbl_pV)); xticklabels(lbl_pE); yticklabels(lbl_pV)
+xlabel("pE"); ylabel("pV"); title('Effect on (P)'); axis square;
+colormap gray; colorbar; set(gca, 'FontSize',12);
+
+% Plot the effects off (F):
 nexttile()
 imagesc(F_off); xticks(1:length(lbl_pE)); yticks(1:length(lbl_pV)); xticklabels(lbl_pE); yticklabels(lbl_pV)
-xlabel("pE"); ylabel("pV"); title('Effect off'); axis square;
+xlabel("pE"); ylabel("pV"); title('Effect off (F)'); axis square;
 colormap gray; colorbar; set(gca, 'FontSize',12);
 
-% Plot the sum of the two:
+% Plot the effects off (P):
 nexttile()
-imagesc(sum_F); xticks(1:length(lbl_pE)); yticks(1:length(lbl_pV)); xticklabels(lbl_pE); yticklabels(lbl_pV)
-xlabel("pE"); ylabel("pV"); title('Sum of evidence'); axis square;
+imagesc(P_off); xticks(1:length(lbl_pE)); yticks(1:length(lbl_pV)); xticklabels(lbl_pE); yticklabels(lbl_pV)
+xlabel("pE"); ylabel("pV"); title('Effect off (P)'); axis square;
 colormap gray; colorbar; set(gca, 'FontSize',12);
 
 % Plot the distribution:

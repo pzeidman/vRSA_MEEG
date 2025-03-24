@@ -46,14 +46,14 @@
 % Version:     1.0
 
 %% Settings
-subjects = {'S1','S2','S3','S4','S5','S6','S7', 'S8', 'S9','S10'};
 subject = 1;
 D = spm_eeg_load(sprintf('subjects/RmD_%s.mat',subjects{subject}));
 [nmodes,ntimes,nstimuli] = size(D(:,:,:));
 rng(51); % Set seed
 
 %% Create contrasts and basis set:
-% Get binary vectors of each condition:
+
+% Get binary vectors for which stimuli belong to each condition
 is_human = double(contains(D.conditions,'Human'));
 is_animal = double(contains(D.conditions,'Animal'));
 is_face = double(contains(D.conditions,'Face'));
@@ -77,7 +77,7 @@ cnames{3} = 'Face - Body';
 cnames{4} = 'Natural - Manmade';
 cnames{5} = 'Species * Body';
 
-% Create FIR with bins of 50ms:
+% Create FIR with-trial design matrix with bins of 50ms:
 xBF = struct();
 xBF.dt = 1 / D.fsample;  % Sampling rate
 xBF.name = 'Finite Impulse Response';
@@ -102,11 +102,26 @@ for sub_i = 1:length(subjects)
     % Compute fitted response and the residuals:
     fitted = X * B; res = Y - fitted;
     % Compute the residuals variance relative to the fitted variance:
-    s(sub_i) = var(res, [], 'all') / var(fitted, [], 'all');
+    %s(sub_i) = var(res, [], 'all') / var(fitted, [], 'all');
+    s(sub_i) = mean(std(res));
 end
+
 % Average variance across subjects:
 s = mean(s);
 
+% Plot sanity check (average betas over stimuli)
+Bhat = B;
+Yhat = zeros(ntimes,1);
+mode = 1;
+ncov = size(Xt,2);
+for i = 1:nstimuli
+    Yhat = Yhat + Xt * Bhat(1:ncov,mode);
+    Bhat = Bhat((ncov+1):end,:);
+end
+Yhat = Yhat ./ ntimes;
+figure;plot(Yhat);
+xlabel('Time (measurements)');
+title({'Average modelled ERP';'(when estimating residual variance)'});
 %% Search for optimal priors
 % Grid search on simulated data to select priors maximizing sensitivity and
 % specificity:

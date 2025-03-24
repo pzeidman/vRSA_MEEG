@@ -77,7 +77,7 @@ if isempty(con_c_names)
     end
 end
 
-if isempty(nXt)
+if isempty(Xt_names)
     for i = 1:nXt
         Xt_names{i} = sprintf('BF %d',i);
     end
@@ -162,29 +162,57 @@ nconc = length(con_c);
 con_c = cellfun(@(C) C - mean(C), con_c, 'UniformOutput', false);
 
 con    = con_c;
-cnames = con_c_names;
+%cnames = con_c_names;
 
 % Label the different types of contrast for convenience
+% ctypes = {};
+% if nconc > 0
+%     ctypes = [ctypes; cellstr(repmat('Condition',nconc,1))];
+% end
+% ctypes{end+1} = 'Noise';
+% cnames{end+1} = 'Noise';
+
+% Specify covariance components, replicating contrasts over bfs
+% -------------------------------------------------------------------------
+cnames = {};
 ctypes = {};
-if nconc > 0
-    ctypes = [ctypes; cellstr(repmat('Condition',nconc,1))];
+ccon = [];
+cbf = [];
+
+ncon = length(con);
+Q = {};
+for i = 1:nXt
+    for j = 1:ncon
+        c = zeros(size(X,2),1);
+        c(bf==i) = con{j};
+        Q{end+1} = c*c';
+        
+        cnames{end+1} = sprintf('%s bf(%d)',con_c_names{j},i);
+        ctypes{end+1} = 'Condition';
+        ccon(end+1)   = j;
+        cbf(end+1)    = i;
+    end
 end
+
+% Add an extra covariance component for the measurement error
+Q{end+1} = iX*iX';
 ctypes{end+1} = 'Noise';
 cnames{end+1} = 'Noise';
+ccon(end+1) = nan;
+cbf(end+1)  = nan;
 
-% Specify covariance components
-% -------------------------------------------------------------------------
-ncon = length(con);
-Q = cell(ncon,1);
-for i = 1:ncon
-    c = con{i};
-    Q{i} = c*c';
-end
+% ncon = length(con);
+% Q = cell(ncon,1);
+% for i = 1:ncon
+%     %c = con{i};
+%     c = kron(con{i},ones(nXt,1));
+%     Q{i} = c*c';
+% end
 nq = length(Q);
 
 % Set prior covariance matrix
 % -------------------------------------------------------------------------
-pC = eye(nq+1) * pV;
+pC = eye(nq) * pV;
 
 % Noise covariance (flat prior)
 pC(end,end) = 128;
@@ -192,7 +220,7 @@ pC(end,end) = 128;
 % Convert prior expectation scalar (pE) to structure
 % -------------------------------------------------------------------------
 P       = struct();
-P.cond  = repmat(pE,1,nconc);
+P.cond  = repmat(pE,1,nq-1);
 P.noise = pE;
 pE = P;
 
@@ -200,6 +228,8 @@ pE = P;
 RSA.con  = con;        % contrast vectors / matrices
 RSA.ctypes = ctypes;   % labels for the types of contrast
 RSA.cnames = cnames;   % names for the components    
+RSA.ccon   = ccon;     % user-specified contrast for each component
+RSA.cbf    = cbf;      % basis function for each component
 RSA.M.pE = pE;         % prior expectation of parameters
 RSA.M.pC = pC;         % prior covariances of parameters
 RSA.M.X  = X;          % design matrix
@@ -211,25 +241,31 @@ RSA.M.Nv = Nv;         % spatial degrees of freedom
 RSA.S    = S;          % provided options
 RSA.B    = B;          % betas
 
-% Create an RSA model for each basis function
-% -------------------------------------------------------------------------
-RSAs = cell(1,nXt);
-for i = 1:nXt
+RSA.BB = RSA.B * RSA.B';
 
-    % Identify betas relating to this basis function
-    k = (bf==i);
-    
-    % Add an extra covariance component for the measurement error
-    QQ = Q;    
-    QQ{ncon+1} = iX(k,:)*iX(k,:)';
-           
-    % Store first and second order parameters
-    RSA.B  = B(k,:);
-    RSA.BB = RSA.B * RSA.B';
-    
-    % Store model
-    RSA.M.Q  = QQ;
-    RSA.M.X0 = X0(k,:);
-    
-    RSAs{1,i} = RSA;
-end
+RSA.M.Q = Q;
+
+RSAs{1} = RSA;
+
+% % Create an RSA model for each basis function
+% % -------------------------------------------------------------------------
+% RSAs = cell(1,nXt);
+% for i = 1:nXt
+% 
+%     % Identify betas relating to this basis function
+%     k = (bf==i);
+%     
+%     % Add an extra covariance component for the measurement error
+%     QQ = Q;    
+%     QQ{ncon+1} = iX(k,:)*iX(k,:)';
+%            
+%     % Store first and second order parameters
+%     RSA.B  = B(k,:);
+%     RSA.BB = RSA.B * RSA.B';
+%     
+%     % Store model
+%     RSA.M.Q  = QQ;
+%     RSA.M.X0 = X0(k,:);
+%     
+%     RSAs{1,i} = RSA;
+% end

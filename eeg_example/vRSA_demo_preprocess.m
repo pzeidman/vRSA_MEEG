@@ -1,4 +1,4 @@
-function vRSA_demo_preprocess
+function vRSA_demo_preprocess(subjects)
 % Imports EEG data from:
 %
 % Kaneshiro B, Perreau Guimaraes M, Kim HS, Norcia AM, and Suppes P (2015). A 
@@ -8,6 +8,11 @@ function vRSA_demo_preprocess
 % 
 % Data downloaded from:
 % https://purl.stanford.edu/bq914sc3730
+%
+% 
+% Inputs:
+%
+% subjects - cell array of subject names
 %
 % Outputs:
 %
@@ -27,8 +32,6 @@ if ~exist(out_dir,'file')
     mkdir(out_dir);
 end
 
-% Subject names
-subjects = {'S1','S2','S3','S4','S5','S6','S7','S8', 'S9','S10'};
 nsubjects = length(subjects);
 
 % Name of each stimulus category in the right order:
@@ -47,10 +50,14 @@ for s = 1:nsubjects
     % ---------------------------------------------------------------------
     
     % Load data (times x channels)
-    load(fullfile(raw_dir, [subjects{s} '.mat']));    
+    data = load(fullfile(raw_dir, [subjects{s} '.mat']));    
+    X_3D = data.X_3D;
+    Fs   = data.Fs;
+    exemplarLabels = data.exemplarLabels;
+    categoryLabels = data.categoryLabels;
     
     % Get the dimension:
-    [nchannels, ntimes,ntrials] = size(X_3D);
+    [nchannels,ntimes,ntrials] = size(X_3D);
 
     % The data are already epoched, we only need to generate a time vector:
     t = 0:1/Fs:0.5;
