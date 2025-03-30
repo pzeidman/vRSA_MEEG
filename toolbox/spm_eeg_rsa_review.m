@@ -16,8 +16,8 @@ function spm_eeg_rsa_review(RSA, options)
 %   spm_eeg_rsa_review(RSA, options)
 %
 % Inputs:
-%   RSA - Cell array containing model-fitting results. Each cell is
-%         a structure with fields:
+%   RSA - Structure containing model-fitting results from spm_eeg_rsa_estimate. 
+%       The structure must contain the following fields:
 %           .Ep      Posterior estimates (struct or numeric)
 %           .Cp      Posterior covariance
 %           .logBF   Log Bayesian Factor evidence
@@ -30,7 +30,7 @@ function spm_eeg_rsa_review(RSA, options)
 %       .FIR_bf  (default = false)
 %                     If true, treat design as FIR/time-based, and plotting
 %                     the results accordingly
-%       .t            Time vector (default = 1:RSA{1}.M.ntimes)
+%       .t            Time vector (default = 1:RSA.M.ntimes)
 %       .data         Data for comparison against model fits (optional)
 %
 % This function:
@@ -43,7 +43,7 @@ function spm_eeg_rsa_review(RSA, options)
 % Parse input arguments & defaults
 %--------------------------------------------------------------------------
 arguments
-    RSA cell
+    RSA struct
     options.FIR_bf (1,1) logical = false
     options.t (:, 1) {mustBeNumeric} = []
     options.data (:, :, :) = []
@@ -51,34 +51,40 @@ end
 
 if isempty(options.t)
     % Default time vector covers all time bins in the model
-    options.t = (1:RSA{1}.M.ntimes)';
+    options.t = (1:RSA.M.ntimes)';
 end
-if ~isfield(RSA{1, 1}, 'cnames') | isempty(RSA{1, 1}.cnames)
-    ncomp = length(RSA{1, 1}.M.Q);
-    RSA{1, 1}.cnames = arrayfun(@(x) sprintf('cond-%d', x), 1:ncomp, ...
+if ~isfield(RSA, 'cnames') | isempty(RSA.cnames)
+    ncon = length(RSA.con);
+    RSA.cnames = arrayfun(@(x) sprintf('contrast-%d', x), 1:ncon, ...
         'UniformOutput', false);
 end
 if ~isempty(options.data)
-    for m = 1:RSA{1}.M.nmodes
-        for c = 1:RSA{1}.M.nconditions
+    for m = 1:RSA.M.nmodes
+        for c = 1:RSA.M.nconditions
             options.data(m,:,c) = options.data(m,:,c) - ...
                 mean(options.data(m,:,c));
         end
     end
 end
 %--------------------------------------------------------------------------
-% Basic model info & extraction
+% Unpack info from RSA structure
 %--------------------------------------------------------------------------
-nXt        = RSA{1}.M.nXt;                     % # basis functions
-Xt         = RSA{1}.M.Xt;                      % First-order basis design
-Ep         = cellfun(@(x) spm_vec(x.Ep),  RSA, 'UniformOutput', false);
-Vp         = cellfun(@(x) diag(x.Cp),     RSA, 'UniformOutput', false);
-logBF      = cellfun(@(x) spm_vec(x.logBF.cond), RSA, 'UniformOutput', false);
-logBF      = cell2mat(logBF);                  % (components x basis functions)
-Qnames     = RSA{1}.cnames;                    % Names of components
-Xt_names   = RSA{1}.M.Xt_names;                % Names of the basis functions
-nQ         = size(Qnames, 2);
-
+nmodes      = RSA.M.nmodes;                       % Number of modes/channels
+nconditions = RSA.M.nconditions;                  % Number of conditions
+B           = RSA.B;                              % First order betas
+nXt         = RSA.M.nXt;                          % # basis functions
+Xt          = RSA.M.Xt;                           % First-order basis design
+con         = RSA.con;                            % Contrasts
+ncon        = length(con);                        % Number of contrasts
+nQ          = length(RSA.M.Q);                    % Number of components (nXt * ncon)
+qcon        = RSA.qcon;                           % Index of each contrast
+qbf         = RSA.qbf;                             % Index of each bf
+Ep          = [RSA.Ep.cond, RSA.Ep.noise];        % Posterior mean
+Vp          = RSA.Cp;                             % Posterior covariance
+logBF       = reshape(RSA.logBF.cond, ncon, nXt); % (contrasts x basis functions)
+cnames      = RSA.cnames;                         % Names of components
+qnames      = RSA.qnames;                         % Names of components
+Xt_names    = RSA.M.Xt_names;                     % Names of the basis functions
 %--------------------------------------------------------------------------
 % FIGURE 1: First and second order design
 %--------------------------------------------------------------------------
@@ -110,7 +116,7 @@ end
 %------------------------------------
 % (2) MIDDLE+BOTTOM: Plot Q-matrices (Second-order)
 %------------------------------------
-nGrid = ceil(sqrt(nQ));  % dimension of grid for Q-matrices
+nGrid = ceil(sqrt(ncon));  % dimension of grid for Q-matrices
 
 % Create nested layout in tile #2, spanning 2 rows (tiles #2 & #3)
 layout2 = tiledlayout(mainLayout, nGrid, nGrid, ...
@@ -119,52 +125,46 @@ layout2.Layout.Tile     = 2;
 layout2.Layout.TileSpan = [2 1];
 title(layout2, 'Model matrices');
 
-for q = 1:nQ
+for c = 1:ncon
     nexttile(layout2);
-    imagesc(RSA{1}.M.Q{q});
+    imagesc(con{c} * con{c}');
     colormap gray;
     axis square;
-    title(Qnames{q});
+    title(cnames{c});
     set(gca, 'FontSize',12);
 end
 
 %--------------------------------------------------------------------------
-% FIGURE 2: Estimated parameters & fits
+% FIGURE 2: First order fit:
 %--------------------------------------------------------------------------
-fig = figure('Name', 'Estimated parameters', 'Position', [10, 10, 725, 725], 'Color',[1 1 1]);
+fig = figure('Name', 'First order fit', 'Position', [10, 10, 725, 725], 'Color',[1 1 1]);
 
 % Layout for various subplots
-mainLayout = tiledlayout(fig, 3, 1, ...
+mainLayout = tiledlayout(fig, 3, 3, ...
     'TileSpacing','compact', 'Padding','compact');
-%------------------------------------
-% (A) Plot first-order fit (for demonstration)
-%------------------------------------
-layout1 = tiledlayout(mainLayout,3,3, ...
-    'TileSpacing','compact', 'Padding','compact');
-layout1.Layout.Tile = 1;
-% Draw 9 random channels:
-if RSA{1}.M.nmodes > 8
-    ch_ind = randsample([RSA{1}.M.nmodes], 9, 1);
+
+% Draw 9 random channels if more than 9 channels:
+if nmodes > 8
+    ch_ind = randsample(nmodes, 9, 1);
 else
-    ch_ind = 1:RSA{1}.M.nmodes;
+    ch_ind = 1:nmodes;
 end
 % Recreate the first order design matrix:
-X = kron(eye(RSA{1}.M.nconditions), Xt);
+X = kron(eye(nconditions), Xt);
 
 for i = 1:length(ch_ind)
-    nexttile(layout1)
+    nexttile(mainLayout)
     % Average the beta across trials for each basis function
-    B = cell2mat(cellfun(@(x) x.B(:, ch_ind(i)),  RSA, ...
-        'UniformOutput', false));
+    Bi = B(:, ch_ind(i));
     % Reshape betas:
-    B = reshape(B.', [], 1);
+    Bi = reshape(Bi.', [], 1);
 
     % Calculated fitted:
-    fitted = X * B;
+    fitted = X * Bi;
     
     % Compute average across conditions/trials
-    fitted2D = reshape(fitted, size(X, 1)/RSA{1}.M.nconditions, ...
-        RSA{1}.M.nconditions);
+    fitted2D = reshape(fitted, size(X, 1)/nconditions, ...
+        nconditions);
     plot(options.t, fitted2D, 'Color', [0, 0, 0, 0.2], 'LineWidth', 0.5)
     hold on
     if ~isempty(options.data)
@@ -184,27 +184,26 @@ for i = 1:length(ch_ind)
     set(gca,'YTickLabel',[]);
 end
 
-%------------------------------------
-% (B) Posterior parameters
-%------------------------------------
+%--------------------------------------------------------------------------
+% FIGURE 3: Estimated parameter in log space
+%--------------------------------------------------------------------------
 if options.FIR_bf
     %----------------------------------------------------------------------
     % FIR/time-based model
     %----------------------------------------------------------------------
+    fig = figure('Name', 'Estimated parameters', 'Position', [10, 10, 725, 725], 'Color',[1 1 1]);
+    mainLayout = tiledlayout(fig, 3, 1, 'TileSpacing','compact', 'Padding','compact');
+    
     t = spm_pinv(Xt) * options.t;  % Downsample time to match the FIR
-
-    Ep_mat = cell2mat(Ep);
-    Vp_mat = cell2mat(Vp);
-
     % (1) Posterior (Ep) over time
-    nexttile(mainLayout, 2);
-    lbl = cell(nQ*2,1);
+    nexttile(mainLayout, 1);
+    lbl = cell(ncon*2,1);
     ctr = 1;
-    for q = 1:nQ
+    for c = 1:ncon
         hold on
-        spm_plot_ci(Ep_mat(q,:), Vp_mat(q,:), t);
+        spm_plot_ci(Ep(:,qcon == c), diag(Vp(qcon == c,qcon == c)), t);
         lbl{ctr}   = '';
-        lbl{ctr+1} = Qnames{q};
+        lbl{ctr+1} = cnames{c};
         ctr        = ctr + 2;
     end
     title('Posterior over time');
@@ -215,11 +214,11 @@ if options.FIR_bf
     legend(lbl);
 
     % (2) Exponential of posterior (weights)
-    nexttile(mainLayout, 3);
+    nexttile(mainLayout, 2);
     hold on
-    for q = 1:nQ
+    for c = 1:ncon
         hold on
-        spm_plot_ci(Ep_mat(q,:), Vp_mat(q,:), t, [], 'exp');
+        spm_plot_ci(Ep(:,qcon == c), diag(Vp(qcon == c,qcon == c)), t, [], 'exp');
     end
     title('Weight over time');
     set(gca, 'FontSize',12);
@@ -232,34 +231,35 @@ else
     %----------------------------------------------------------------------
     % Non-FIR basis
     %----------------------------------------------------------------------
-    % (1) Posterior per component
-    layout2 = tiledlayout(mainLayout,1,nXt, ...
-        'TileSpacing','compact', 'Padding','compact');
-    layout2.Layout.Tile = 2;
+    fig = figure('Name', 'Estimated parameters', 'Position', [10, 10, 725, 725], 'Color',[1 1 1]);
+    nGrid = ceil(sqrt(nXt));  % dimension of grid for Q-matrices
+    mainLayout = tiledlayout(fig, nGrid, nGrid, 'TileSpacing','compact', 'Padding','compact');
+    
     for bf = 1:nXt
-        ax = nexttile(layout2);
-        spm_plot_ci(Ep{bf}, diag(Vp{bf}));
+        ax = nexttile(mainLayout);
+        spm_plot_ci(Ep(:, qbf == bf)', diag(Vp(qbf == bf, qbf == bf)));
         axis square;
         title(Xt_names{bf});
         set(ax, 'FontSize',12);
-        xticklabels(Qnames);
-        if bf == 1
+        if bf == nXt
             ylabel('Posterior');
+            xticklabels(cnames);
         end
     end
 
     % (2) Exponential of posterior
-    layout3 = tiledlayout(mainLayout,1,nXt);
-    layout3.Layout.Tile = 3; 
+    fig = figure('Name', 'Estimated weights', 'Position', [10, 10, 725, 725], 'Color',[1 1 1]);
+    nGrid = ceil(sqrt(nXt));  % dimension of grid for Q-matrices
+    mainLayout = tiledlayout(fig, nGrid, nGrid, 'TileSpacing','compact', 'Padding','compact');
     for bf = 1:nXt
-        ax = nexttile(layout3);
-        spm_plot_ci(Ep{bf}, diag(Vp{bf}), [], [], 'exp');
+        ax = nexttile(mainLayout);
+        spm_plot_ci(Ep(:, qbf == bf)', diag(Vp(qbf == bf, qbf == bf)), [], [], 'exp');
         axis square;
         title(Xt_names{bf});
         set(ax, 'FontSize',12);
-        xticklabels(Qnames);
-        if bf == 1
-            ylabel('Weight');
+        if bf == nXt
+            ylabel('Posterior');
+            xticklabels(cnames);
         end
     end
 end
@@ -273,9 +273,9 @@ rows = 3;
 cols = 4;
 
 % (1) Sum second-order betas (BB) across all BFs
-BB = RSA{1}.BB;
-for bf = 2:length(RSA)
-    BB = BB + RSA{bf}.BB;
+BB = zeros(nconditions);
+for bf = 1:nXt
+    BB = BB + RSA.BB(bf:nXt:end, bf:nXt:end);
 end
 subplot(rows, cols, 1:2);
 imagesc(BB);
@@ -284,9 +284,9 @@ axis square;
 title('Betas (2nd order)', 'FontSize',16);
 
 % (2) Summation of vRSA (G)
-G = RSA{1}.G;
-for bf = 2:length(RSA)
-    G = G + RSA{bf}.G;
+G = zeros(nconditions);
+for bf = 1:length(RSA)
+    G = G + RSA.G(bf:nXt:end, bf:nXt:end);
 end
 subplot(rows, cols, 3:4);
 imagesc(G);
@@ -304,11 +304,11 @@ if options.FIR_bf
     ylabel('log BF');
     xlabel('Time');
     xlim([t(1), t(end)]);
-    legend(RSA{1}.cnames, 'Location','best');
+    legend(cnames, 'Location','best');
     set(gca, 'FontSize',12);
 else
-    % For non-FIR, logBF is a matrix (nQ x nXt)
-    if nQ == 1
+    % For non-FIR, logBF is a matrix (ncon x nXt)
+    if ncon == 1
         bar(logBF, 'FaceColor','k');
         str = sprintf('Total: %2.2f nats', sum(logBF));
         title({'Log evidence', str}, 'FontSize',16);
@@ -316,8 +316,8 @@ else
     else
         imagesc(logBF);
         colormap gray;
-        set(gca,'YTick',1:nQ, 'YTickLabel',RSA{1}.cnames);
-        set(gca,'XTick',1:nXt, 'XTickLabel',Xt_names);
+        set(gca,'YTick',1:nQ, 'YTickLabel', cnames);
+        set(gca,'XTick',1:nXt, 'XTickLabel',1:nXt);
         colorbar;
         title({'Log evidence','per condition & BF'}, 'FontSize',16);
     end
@@ -326,12 +326,12 @@ else
     axis square;
 end
 
-if nQ > 1
+if ncon > 1
     % (4) Log evidence per condition
     F_cond = sum(logBF,2);
     subplot(rows, cols, 9:10);
     bar(F_cond, 'FaceColor','k');
-    set(gca, 'XTick',1:nQ, 'XTickLabel',RSA{1}.cnames(1:nQ));
+    set(gca, 'XTick',1:ncon, 'XTickLabel', cnames);
     colormap gray;
     set(gca, 'FontSize',12);
     title({'Log evidence','per condition'}, 'FontSize',16);
@@ -341,7 +341,7 @@ if nQ > 1
     F_bf = sum(logBF,1);
     subplot(rows, cols, 11:12);
     bar(F_bf, 'FaceColor','k');
-    set(gca, 'XTick',1:nQ, 'XTickLabel',Xt_names);
+    set(gca, 'XTick',1:nXt, 'XTickLabel',1:nXt);
     xlabel('Basis function');
     colormap gray;
     set(gca, 'FontSize',12);
