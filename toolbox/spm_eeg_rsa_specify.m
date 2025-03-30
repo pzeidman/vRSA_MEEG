@@ -37,7 +37,7 @@ function [RSAs] = spm_eeg_rsa_specify(S,D)
 % S.con_t       - within-trial contrasts (cell array)
 % S.con_c       - between-condition contrasts (cell array)
 % S.con_t_names - names of within-trial contrasts (optional) 
-% S.con_c_names - names of between-condition contrasts (optional) 
+% S.cnames - names of between-condition contrasts (optional) 
 % D             - MEEG data object in standard SPM format
 %
 % Optional:
@@ -51,29 +51,29 @@ function [RSAs] = spm_eeg_rsa_specify(S,D)
 % -------------------------------------------------------------------------
 
 % Required inputs
-con_c = S.con_c;
+con = S.con_c;
 Xt    = S.Xt;
 
 % Get sizes
 [nmodes,ntimes,nconditions] = size(D(:,:,:));
-nXt = size(Xt,2);
+nXt               = size(Xt,2);                % Number of basis functions
 RSA.M.nmodes      = nmodes;
 RSA.M.ntimes      = ntimes;
 RSA.M.nconditions = nconditions;
 RSA.M.nXt         = nXt;
 
 % Optional inputs
-try con_c_names = S.con_c_names; catch, con_c_names = {}; end
+try cnames = S.cnames; catch, cnames = {}; end
 try Xt_names = S.Xt_names; catch, Xt_names = {}; end
 try pE          = S.pE;          catch, pE = -16; end
 try pV          = S.pV;          catch, pV = 128; end
 try X0 = S.X0; catch, X0 = ones(ntimes*nconditions,1); end
 
-if ~iscell(con_c), con_c = {con_c}; end
+if ~iscell(con), con = {con}; end
 
-if isempty(con_c_names)
-    for i = 1:length(con_c)
-        con_c_names{i} = sprintf('Contrast %d',i);
+if isempty(cnames)
+    for i = 1:length(con)
+        cnames{i} = sprintf('Contrast %d',i);
     end
 end
 
@@ -89,14 +89,6 @@ end
 
 % Y: modes x time x conditions
 Y = D(:,:,:);
-
-% Mean correct each ERP over time
-% (saves having a constant regressor in the basis set)
-for m = 1:nmodes
-    for c = 1:nconditions
-        Y(m,:,c) = Y(m,:,c) - mean(Y(m,:,c));
-    end
-end
 
 % Re-shape to Y: time x modes x conditions
 Y = permute(Y,[2 1 3]);
@@ -156,28 +148,15 @@ X0 = iX*X0;
 
 % Prepare contrasts
 % -------------------------------------------------------------------------  
-nconc = length(con_c);
-
 % Mean-centre contrasts
-con_c = cellfun(@(C) C - mean(C), con_c, 'UniformOutput', false);
-
-con    = con_c;
-%cnames = con_c_names;
-
-% Label the different types of contrast for convenience
-% ctypes = {};
-% if nconc > 0
-%     ctypes = [ctypes; cellstr(repmat('Condition',nconc,1))];
-% end
-% ctypes{end+1} = 'Noise';
-% cnames{end+1} = 'Noise';
+con = cellfun(@(C) C - mean(C), con, 'UniformOutput', false);
 
 % Specify covariance components, replicating contrasts over bfs
 % -------------------------------------------------------------------------
-cnames = {};
-ctypes = {};
-ccon = [];
-cbf = [];
+qnames = {};
+qtypes = {};
+qcon = [];
+qbf = [];
 
 ncon = length(con);
 Q = {};
@@ -187,27 +166,20 @@ for i = 1:nXt
         c(bf==i) = con{j};
         Q{end+1} = c*c';
         
-        cnames{end+1} = sprintf('%s bf(%d)',con_c_names{j},i);
-        ctypes{end+1} = 'Condition';
-        ccon(end+1)   = j;
-        cbf(end+1)    = i;
+        qnames{end+1} = sprintf('%s bf(%d)',cnames{j},i);
+        qtypes{end+1} = 'Condition';
+        qcon(end+1)   = j;
+        qbf(end+1)    = i;
     end
 end
 
 % Add an extra covariance component for the measurement error
 Q{end+1} = iX*iX';
-ctypes{end+1} = 'Noise';
-cnames{end+1} = 'Noise';
-ccon(end+1) = nan;
-cbf(end+1)  = nan;
+qtypes{end+1} = 'Noise';
+qnames{end+1} = 'Noise';
+qcon(end+1) = nan;
+qbf(end+1)  = nan;
 
-% ncon = length(con);
-% Q = cell(ncon,1);
-% for i = 1:ncon
-%     %c = con{i};
-%     c = kron(con{i},ones(nXt,1));
-%     Q{i} = c*c';
-% end
 nq = length(Q);
 
 % Set prior covariance matrix
@@ -226,10 +198,11 @@ pE = P;
 
 % Package
 RSA.con  = con;        % contrast vectors / matrices
-RSA.ctypes = ctypes;   % labels for the types of contrast
-RSA.cnames = cnames;   % names for the components    
-RSA.ccon   = ccon;     % user-specified contrast for each component
-RSA.cbf    = cbf;      % basis function for each component
+RSA.cnames = cnames;   % names for the contrasts    
+RSA.qtypes = qtypes;   % labels for the types of contrast
+RSA.qnames = qnames;   % names for the components    
+RSA.qcon   = qcon;     % user-specified contrast for each component
+RSA.qbf    = qbf;      % basis function for each component
 RSA.M.pE = pE;         % prior expectation of parameters
 RSA.M.pC = pC;         % prior covariances of parameters
 RSA.M.X  = X;          % design matrix
@@ -246,26 +219,3 @@ RSA.BB = RSA.B * RSA.B';
 RSA.M.Q = Q;
 
 RSAs{1} = RSA;
-
-% % Create an RSA model for each basis function
-% % -------------------------------------------------------------------------
-% RSAs = cell(1,nXt);
-% for i = 1:nXt
-% 
-%     % Identify betas relating to this basis function
-%     k = (bf==i);
-%     
-%     % Add an extra covariance component for the measurement error
-%     QQ = Q;    
-%     QQ{ncon+1} = iX(k,:)*iX(k,:)';
-%            
-%     % Store first and second order parameters
-%     RSA.B  = B(k,:);
-%     RSA.BB = RSA.B * RSA.B';
-%     
-%     % Store model
-%     RSA.M.Q  = QQ;
-%     RSA.M.X0 = X0(k,:);
-%     
-%     RSAs{1,i} = RSA;
-% end
