@@ -98,7 +98,7 @@ if exist('priors.mat', 'file')
     S.pE = priors.pE;
     S.pV = priors.pV;
 else
-    S.pE = -4;
+    S.pE = -8;
     S.pV = 8;
 end
 %% Fit an examplar subject
@@ -108,8 +108,7 @@ save(sprintf('subjects/RSA_s%d.mat',subject),'RSA','-v7.3');
 % Computing the time axis of the FIR:
 spm_eeg_rsa_review(RSA, FIR_bf=true, t=D.time', data=D(:, :, :));
 %% Run first level analysis on group-level empirical data
-nbases = size(Xt,2);
-RSAs = cell(length(subjects),nbases);
+RSAs = cell(length(subjects), 1);
 for s = 1:length(subjects)
     disp(subjects{s});
     % Load data    
@@ -117,14 +116,14 @@ for s = 1:length(subjects)
     % RSA settings
     settings = S;
     % Specify and estimate
-    RSAs(s,:) = spm_eeg_rsa_specify(settings,D);    
-    RSAs(s,:) = spm_eeg_rsa_estimate(RSAs(s,:));
+    RSAs{s} = spm_eeg_rsa_specify(settings,D);    
+    RSAs{s} = spm_eeg_rsa_estimate(RSAs{s});
 end
 save('subjects/RSAs.mat','RSAs','-v7.3');
 %% Run second level analysis
 load('subjects/RSAs.mat');
 
 % Run PEB / BMC
-[PEB,F] = spm_eeg_rsa_peb(RSAs, params=[1, 2, 3, 4, 5], FIR_bf=true, t=D.time');
+[PEB,F] = spm_eeg_rsa_peb(RSAs, params=1:(length(RSAs{1}.qtypes)-1), FIR_bf=true, t=D.time');
 
 save('subjects/PEB.mat','F','PEB');

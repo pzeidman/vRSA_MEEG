@@ -83,7 +83,7 @@ xBF.name = 'Fourier set';
 xBF.length = ntimes * xBF.dt;
 xBF.order  = 8;
 xBF = spm_get_bf(xBF);    
-Xt = xBF.bf(1:ntimes, 2:end);
+Xt = xBF.bf(1:ntimes, 2:end);  % Remove intercept term
 
 % RSA settings
 S = struct();

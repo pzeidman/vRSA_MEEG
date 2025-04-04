@@ -1,8 +1,8 @@
 %% Identify the order of Fourier basis set to use
 
 % Get one subject's data
-subject = 1;
-D = spm_eeg_load(sprintf('subjects/RmD_%s.mat',subjects{subject}));
+subject = 'S1';
+D = spm_eeg_load(sprintf('subjects/RmD_%s.mat', subject));
 
 % Get the first mode of data
 t = D.time;

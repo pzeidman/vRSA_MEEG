@@ -69,7 +69,7 @@ if exist('priors.mat', 'file')
     S.pE = priors.pE;
     S.pV = priors.pV;
 else
-    S.pE = -4;
+    S.pE = -8;
     S.pV = 8;
 end
 
@@ -83,15 +83,16 @@ s = 0.14;
 Y = spm_eeg_simulate_covariance(Xt, c, s, nmodes, length(subjects), CV);
 
 nbases = size(Xt,2);
-RSAs = cell(length(subjects),nbases);
+RSAs = cell(length(subjects),1);
 for s = 1:length(subjects)
     % Load data    
     y =  reshape(Y{s}', [nmodes, size(Y{s}, 1)/(nstimuli), nstimuli]);
     % RSA settings
     settings = S;
     % Specify and estimate
-    RSAs(s,:) = spm_eeg_rsa_specify(settings,y);    
-    RSAs(s,:) = spm_eeg_rsa_estimate(RSAs(s,:));
+    RSAs{s} = spm_eeg_rsa_specify(settings,y);    
+    RSAs{s} = spm_eeg_rsa_estimate(RSAs{s});
+    spm_eeg_rsa_review(RSAs(1), FIR_bf=true, t=D.time', data=y(:, :, :));
 end
 % Save the results:
 save('subjects/RSAs-sim.mat','RSAs','-v7.3');

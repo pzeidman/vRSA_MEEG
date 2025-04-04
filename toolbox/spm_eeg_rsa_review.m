@@ -168,14 +168,9 @@ for i = 1:length(ch_ind)
     plot(options.t, fitted2D, 'Color', [0, 0, 0, 0.2], 'LineWidth', 0.5)
     hold on
     if ~isempty(options.data)
-        % Mean correct each ERP over time
+        % Mean correct each ERP over channel
         Y = options.data - mean(options.data, 1);
         Y = squeeze(Y(ch_ind(i), :, :));
-        for c = 1:size(Y, 2)
-            Y(:,c) = Y(:,c) - mean(Y(:,:), 'all');
-        end
-        % Mean correct over channel:
-        Y = Y - mean(Y);
         plot(options.t, Y, 'Color', [1, 0, 0, 0.2], 'LineWidth', 0.5)
     end
     xlim([options.t(1), options.t(end)]);

@@ -46,6 +46,8 @@
 % Version:     1.0
 
 %% Settings
+% subjects = {'S1','S2','S3','S4','S5','S6','S7', 'S8', 'S9','S10'};
+subjects = {'S1'};
 subject = 1;
 D = spm_eeg_load(sprintf('subjects/RmD_%s.mat',subjects{subject}));
 [nmodes,ntimes,nstimuli] = size(D(:,:,:));
@@ -102,7 +104,6 @@ for sub_i = 1:length(subjects)
     % Compute fitted response and the residuals:
     fitted = X * B; res = Y - fitted;
     % Compute the residuals variance relative to the fitted variance:
-    %s(sub_i) = var(res, [], 'all') / var(fitted, [], 'all');
     s(sub_i) = mean(std(res));
 end
 
@@ -142,7 +143,9 @@ if ~exist('./figures', 'dir')
 end
 
 fh = findobj( 'Type', 'Figure', 'Name', 'Prior Selection' );
-print(fh, './figures/Figure5ABC.svg', '-dsvg')
+print(fh, './figures/Figure5ABCD.svg', '-dsvg')
+fh = findobj( 'Type', 'Figure', 'Name', 'Face validity' );
+print(fh, './figures/Figure5E.svg', '-dsvg')
 % Plot of the selected distribution (export to pdf as svg messes font up)
 fh = findobj( 'Type', 'Figure', 'Name', 'Normal Log normal' );
-print(fh, './figures/Figure5D.svg', '-dsvg')
+print(fh, './figures/Figure5F.svg', '-dsvg')
