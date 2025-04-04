@@ -1,4 +1,4 @@
-function Y = spm_eeg_simulate_covariance(Xt, con, s, nmodes, nsub, CV)
+function [Y, B] = spm_eeg_simulate_covariance(Xt, con, s, nmodes, nsub, CV)
 % SPM_EEG_SIMULATE_COVARIANCE Simulate time-resolved data with specified covariance components.
 %
 %   Y = spm_eeg_simulate_covariance(Xt, con, s, nmodes, nsub, CV)
@@ -30,6 +30,10 @@ function Y = spm_eeg_simulate_covariance(Xt, con, s, nmodes, nsub, CV)
 %       Y       - A cell array of size {nsub, 1}, where each cell contains a
 %                 simulated data matrix of size [nTimePoints × nmodes].
 %                 The data in Y{i} corresponds to subject i.
+%       B       - A cell array of size {nsub, 1}, where each cell contains
+%                 the ground truth beta parameters used to simulate the
+%                 data [(nContrasts x nXt) x nModes]. The data in B{i} 
+%                 corresponds to subject i.
 %
 %   HOW IT WORKS:
 %       1. A design matrix (X) is created by taking the Kronecker product 
@@ -78,11 +82,13 @@ X  = kron(con, Xt); X0 = ones(size(X,1),1);
 
 % Preallocate Y for each subject
 Y  = cell(nsub, 1);
+% Store the ground truth beta for later reference:
+B  = cell(nsub, 1);
 
 for i = 1:nsub
     % functionally specialised responses, randomly distributed over voxels
     %----------------------------------------------------------------------
-    B    = diag(CV(:))*randn(nC * nXt,nmodes);
+    B{i} = diag(CV(:))*randn(nC * nXt,nmodes);
 
     % observation error
     %----------------------------------------------------------------------
@@ -94,5 +100,5 @@ for i = 1:nsub
 
     % response variable
     %----------------------------------------------------------------------
-    Y{i} = X*B + X0*B0 + e;
+    Y{i} = X*B{i} + X0*B0 + e;
 end

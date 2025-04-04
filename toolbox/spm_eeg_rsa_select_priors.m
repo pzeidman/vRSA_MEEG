@@ -67,17 +67,17 @@ nC      = size(c, 2);    % Number of contrasts
 pEs     = -16:2:-2;
 pVs     = [2 4 8 16 32 64 128];
 
-% Preallocate for on and off:
-F_on = zeros(length(pVs), length(pEs));
-F_off = zeros(length(pVs), length(pEs));
+% Preallocate for on and off and face validity:
+F_on          = zeros(length(pVs), length(pEs));
+F_off         = zeros(length(pVs), length(pEs));
+Eps_beta_corr = zeros(length(pVs), length(pEs), nsub);
 
 %  Switch half of the effects on, the other half off:
 CV = zeros(nXt, nC);
 ind_on = randsample(nXt * nC, ceil(nXt * nC/2));
 CV(ind_on) = 1; % Turn these effects on
-
 %% 1) Simulate the data:
-Y = spm_eeg_simulate_covariance(bf, c, s, nmodes, nsub, CV);
+[Y, B_true] = spm_eeg_simulate_covariance(bf, c, s, nmodes, nsub, CV);
 
 %% 2) Grid search for optimal priors:
 
@@ -103,6 +103,13 @@ for pE_i = 1:length(pEs)
             RSA(i_sub,:) = spm_eeg_rsa_specify(S,D);
             %RSA(i_sub,:) = spm_eeg_rsa_estimate(RSA(i_sub,:));
             RSA{i_sub} = spm_eeg_rsa_estimate(RSA{i_sub});
+            
+            % Reshape the ground truth beta to compare to the estimates
+            % (the vRSA pipeline returns estimates in a different order)
+            b = reshape(var(B_true{i_sub}, [], 2), [size(CV)])'; 
+            % Compute the correlation between estimated parameters and
+            % beta variance for each contrast
+            Eps_beta_corr(pV_i, pE_i, i_sub) = corr(b(:), exp(RSA{1}.Ep.cond)');
         end
 
         if nsub > 1
@@ -124,7 +131,7 @@ for pE_i = 1:length(pEs)
             % Evidence in favor of on effect:
             F_on(pV_i, pE_i) = sum(F(find(CV' == 1, 1)));     % PZ: what does this do??
             % Evidence against off effect (hence the -F)
-            F_off(pV_i, pE_i) = sum(-F(find(~CV' == 1, 1)));
+            F_off(pV_i, pE_i) = sum(F(find(~CV' == 1, 1)));
         else
             % Single subject analysis
             F_on(pV_i, pE_i)  = sum(RSA{1}.logBF.cond(spm_vec(CV')==1));
@@ -135,8 +142,8 @@ end
 
 %% 3) Find the (pE, pV) combination that maximizes free energy for on effects while avoiding false positives
 % Take the sum of the evidence for on and off effects:
-sum_F = F_on + F_off;
-[x,y]=find(sum_F==max(sum_F(F_off > 0), [], "all"));
+sum_F = F_on - F_off;
+[x,y]=find(sum_F==max(sum_F(F_off < 0), [], "all"));
 
 % Optimized prior expectation & variance
 pE = pEs(y);
@@ -196,6 +203,12 @@ colormap gray; colorbar; set(gca, 'FontSize',12);
 nexttile()
 imagesc(P_off); xticks(1:length(lbl_pE)); yticks(1:length(lbl_pV)); xticklabels(lbl_pE); yticklabels(lbl_pV)
 xlabel("pE"); ylabel("pV"); title('Effect off (P)'); axis square;
+colormap gray; colorbar; set(gca, 'FontSize',12);
+
+% Correlation between Ep and beta variance as a function of pE and pE:
+fig = figure('Name', 'Face validity', 'Position', [10, 10, 725, 725], 'Color',[1 1 1]);
+imagesc(mean(Eps_beta_corr, 3)); xticks(1:length(lbl_pE)); yticks(1:length(lbl_pV)); xticklabels(lbl_pE); yticklabels(lbl_pV)
+xlabel("pE"); ylabel("pV"); title('Correlation between Ep and Beta variance (r)'); axis square;
 colormap gray; colorbar; set(gca, 'FontSize',12);
 
 % Plot the distribution:
