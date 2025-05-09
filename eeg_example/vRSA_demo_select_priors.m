@@ -103,11 +103,11 @@ for sub_i = 1:length(subjects)
     B  = spm_pinv(X) * Y;
     % Compute fitted response and the residuals:
     fitted = X * B; res = Y - fitted;
-    % Compute the residuals variance relative to the fitted variance:
+    % Compute the residual standard deviation (averaged over channels)
     s(sub_i) = mean(std(res));
 end
 
-% Average variance across subjects:
+% Average residual s.d. across subjects:
 s = mean(s);
 
 % Plot sanity check (average betas over stimuli)
@@ -119,17 +119,19 @@ for i = 1:nstimuli
     Yhat = Yhat + Xt * Bhat(1:ncov,mode);
     Bhat = Bhat((ncov+1):end,:);
 end
-Yhat = Yhat ./ ntimes;
+Yhat = Yhat ./ nstimuli;
 figure;plot(Yhat);
 xlabel('Time (measurements)');
 title({'Average modelled ERP';'(when estimating residual variance)'});
 %% Search for optimal priors
 % Grid search on simulated data to select priors maximizing sensitivity and
 % specificity:
+tic
 [pE, pV] = spm_eeg_rsa_select_priors(c, Xt, s, nmodes, nstimuli, ...
     length(subjects));
 
 fprintf('\n Selected Priors: \n for v=%0.2f \n Prior Expectation=%0.2f, \n Prior variance=%0.2f\n', s, pE, pV)
+toc
 
 % Save the priors for later use:
 priors = struct();
@@ -148,4 +150,4 @@ fh = findobj( 'Type', 'Figure', 'Name', 'Face validity' );
 print(fh, './figures/Figure5E.svg', '-dsvg')
 % Plot of the selected distribution (export to pdf as svg messes font up)
 fh = findobj( 'Type', 'Figure', 'Name', 'Normal Log normal' );
-print(fh, './figures/Figure5F.svg', '-dsvg')
+print(fh, './figures/Figure5F.svg', '-dsvg');

@@ -77,22 +77,22 @@ end
 
 % Simulate the data:
 CV = zeros(size(Xt, 2), size(c, 2)); % Controls which effects are on and which are off: time bin x contrast
-CV(4, 5) = 1; % Turn the first contrast on in 3r to 5th time window
-CV(6, 1) = 1; % Turn the second contrast on in the 6th to 8th time window
+CV(4, 5) = 1; % Turn the 5th contrast on in the 4th time window
+CV(6, 1) = 1; % Turn the 1st contrast on in the 6th time window
 s = 0.14;
 Y = spm_eeg_simulate_covariance(Xt, c, s, nmodes, length(subjects), CV);
 
 nbases = size(Xt,2);
 RSAs = cell(length(subjects),1);
-for s = 1:length(subjects)
+parfor s = 1:length(subjects)
     % Load data    
-    y =  reshape(Y{s}', [nmodes, size(Y{s}, 1)/(nstimuli), nstimuli]);
+    y =  reshape(Y{s}', [nmodes, ntimes, nstimuli]);
     % RSA settings
     settings = S;
     % Specify and estimate
     RSAs{s} = spm_eeg_rsa_specify(settings,y);    
     RSAs{s} = spm_eeg_rsa_estimate(RSAs{s});
-    spm_eeg_rsa_review(RSAs(1), FIR_bf=true, t=D.time', data=y(:, :, :));
+    %spm_eeg_rsa_review(RSAs(1), FIR_bf=true, t=D.time', data=y(:, :, :));
 end
 % Save the results:
 save('subjects/RSAs-sim.mat','RSAs','-v7.3');

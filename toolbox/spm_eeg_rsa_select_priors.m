@@ -45,7 +45,7 @@ function [pE, pV] = spm_eeg_rsa_select_priors(c, bf, s, nmodes, nconditions, nsu
 arguments
     c                   % Contrast matrix (numeric or cell array)
     bf {mustBeNumeric}  % Basis function
-    s {mustBeNumeric}   % Variance
+    s {mustBeNumeric}   % Standard deviation
     nmodes  {mustBeNumeric}   % Number of channels
     nconditions  {mustBeNumeric}   % Number of conditions to simulate
     nsub   {mustBeNumeric}   % Number of subjects to simulate
@@ -62,6 +62,7 @@ if iscell(c),    c = cell2mat(c); end
 %--------------------------------------------------------------------------
 nXt     = size(bf, 2);   % Number of basis functions
 nC      = size(c, 2);    % Number of contrasts
+ntimes  = size(bf,1);    % Number of samples per stimulus
 
 % Define prior search space
 pEs     = -16:2:-2;
@@ -98,56 +99,54 @@ for pE_i = 1:length(pEs)
         RSA = cell(nsub,1);
         for i_sub = 1:nsub
             % Convert the data to 3d:
-            D = reshape(Y{i_sub}', [nmodes, size(Y{i_sub}, 1)/(nconditions), nconditions]);
+           
+            D = reshape(Y{i_sub}', [nmodes, ntimes, nconditions]);
             % Calculate RSA for current subject
             RSA(i_sub,:) = spm_eeg_rsa_specify(S,D);
             %RSA(i_sub,:) = spm_eeg_rsa_estimate(RSA(i_sub,:));
             RSA{i_sub} = spm_eeg_rsa_estimate(RSA{i_sub});
             
-            % Reshape the ground truth beta to compare to the estimates
-            % (the vRSA pipeline returns estimates in a different order)
-            b = reshape(var(B_true{i_sub}, [], 2), [size(CV)])'; 
+            % Calculate variance of ground-truth betas across channels (to
+            % obtain one number per time bin per stimulus)
+            vb = var(B_true{i_sub}, [], 2);
+            
+            % Reshape the ground truth betas to dimension [contrasts x bf]
+            b = reshape(vb, size(CV))'; 
+            
             % Compute the correlation between estimated parameters and
             % beta variance for each contrast
             Eps_beta_corr(pV_i, pE_i, i_sub) = corr(b(:), exp(RSA{1}.Ep.cond)');
-        end
-
-        if nsub > 1
-            %------------------------------------------------------------------
-            % Group level evidence with PEB
-            %------------------------------------------------------------------
-            try
-                [~,F] = spm_eeg_rsa_peb(RSA, params=1:size(c, 2), FIR_bf=false, doplot=false);
-            catch
-                F_on(pV_i, pE_i) = nan;
-                % Evidence against off effect (hence the -F)
-                F_off(pV_i, pE_i) = nan;
-                continue
-            end
-
-            %------------------------------------------------------------------
-            % Gather evidence for "on" and "off" effects
-            %------------------------------------------------------------------
-            % Evidence in favor of on effect:
-            F_on(pV_i, pE_i) = sum(F(find(CV' == 1, 1)));     % PZ: what does this do??
-            % Evidence against off effect (hence the -F)
-            F_off(pV_i, pE_i) = sum(F(find(~CV' == 1, 1)));
-        else
-            % Single subject analysis
-            F_on(pV_i, pE_i)  = sum(RSA{1}.logBF.cond(spm_vec(CV')==1));
-            F_off(pV_i, pE_i) = sum(RSA{1}.logBF.cond(spm_vec(CV')==0));
+            
+            % Accumulate evidence for switched on / off effects
+            F_on(pV_i, pE_i)  = F_on(pV_i, pE_i) + sum(RSA{i_sub}.logBF.cond(spm_vec(CV')==1));
+            F_off(pV_i, pE_i) = F_off(pV_i, pE_i) + sum(RSA{i_sub}.logBF.cond(spm_vec(CV')==0));
         end
     end
 end
 
 %% 3) Find the (pE, pV) combination that maximizes free energy for on effects while avoiding false positives
-% Take the sum of the evidence for on and off effects:
-sum_F = F_on - F_off;
-[x,y]=find(sum_F==max(sum_F(F_off < 0), [], "all"));
+
+% Credit for rank-ordering solution:
+% https://uk.mathworks.com/matlabcentral/answers/33296-ranking-ordering-values-with-repeats#answer_177757
+
+% Sort F_on into rank order (higher F = higher rank = better)
+F_on_sorted = sort(F_on(:));
+[~, rankorder_on] = ismember(F_on(:),F_on_sorted);
+
+% Sort F_off into rank order (lower F = higher rank = better)
+F_off_sorted = sort(F_off(:),'descend');
+[~, rankorder_off] = ismember(F_off(:),F_off_sorted);
+
+% Find the best overall
+rank_total = rankorder_on + rankorder_off;
+[~,opt_idx] = max(rank_total);
+
+% Get coordinates in F matrices
+[y,x] = ind2sub(size(F_on),opt_idx);
 
 % Optimized prior expectation & variance
-pE = pEs(y);
-pV = pVs(x);
+pE = pEs(x);
+pV = pVs(y);
 
 if ~options.doplot
     return
