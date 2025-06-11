@@ -77,20 +77,43 @@ vRSA_demo_run_vRSA_FIR;
 
 close all
 %% Figures for the paper:
-% From here on, it is only plotting of the figuresd of the paper:
+% From here on, it is only plotting of the figures of the paper:
 if ~exist('./figures', 'dir')
     mkdir('./figures')
 end
 
 % Load one example data set:
+subject = 1;
 D = spm_eeg_load(sprintf('subjects/RmD_%s.mat',subjects{subject}));
 [nmodes,ntimes,nstimuli] = size(D(:,:,:));
 
+% Load one example RSA model
+load('subjects/RSA_s1.mat');
+Xt = RSA.M.Xt;
+
 %% Figure 1:
 % Plot of the normal and log normal distribution with specified parame=ters
-spm_plot_lognormal(-8, 16)
-% Fetch the figure handle and save it:
-fh = findobj( 'Type', 'Figure', 'Name', 'Normal Log normal' );
+
+mu = -16;
+v  = 1;
+x  = linspace(-30,30,1000);
+L  = spm_Npdf(x,mu,v);
+V  = spm_Npdf(exp(x),mu,v);
+
+fh = figure;
+
+subplot(1,2,1);
+area(x,L,'FaceColor',[0.7 0.7 0.7]);
+xlabel('lambda');ylabel('Probability density');axis square;
+xline(0,':');
+set(gca,'FontSize',12);
+
+subplot(1,2,2);
+area(exp(x),V,'FaceColor',[0.7 0.7 0.7]);
+xlabel('v');ylabel('Probability density');axis square;
+xlim([-0.5 0.5]);
+xline(0,':');
+set(gca,'FontSize',12);
 saveas(fh, './figures/Figure1.svg')
 
 %% Figure 3:
@@ -109,47 +132,28 @@ for i = 1:length(t)
 end
 xlabel('Time (secs)')
 ylabel('Amplitude')
+axis square
 set(gca, 'FontSize',12);
 saveas(fig, './figures/Figure3A.svg')
 
 % Figure 3B: plot the basis functions
 fig = figure;
-Xt_plot = Xt + repmat(0:size(Xt,2)-1, size(Xt,1), 1)*1.3;
-plot(Xt_plot', D.time, 'k')
-set(gca, 'YDir','reverse')
-xlim([-0.5, 19.5])
-ax1 = gca;
-ax1.XAxis.Visible = 'off'; % remove x-axis
-set(gca,'YAxisLocation','left', 'box','off')
-ylabel("Time (secs)")
+imagesc(Xt);
+
+ticks = get(gca,'YTick');
+tick_labels = D.time(ticks);
+set(gca,'YTick',ticks,'YTickLabel',compose('%.2f',tick_labels));
+
+ylabel('Time (secs)')
+xlabel('Basis function (covariate)');
+
+colormap gray
 set(gca, 'FontSize',12);
+axis square
+
 saveas(fig, './figures/Figure3B.svg')
-
-%% Figure 4:
-
-% Figure 4A: plot the Within trial contrast vectors
-fig = figure;
-nXt = size(Xt, 2);
-fig = figure;
-t = tiledlayout(fig, 1, nXt,'TileSpacing', 'compact');
-for i = 1:nXt
-    nexttile(t)
-    imagesc(Xt(:, i))
-    colormap gray;
-    if i == 1
-        ylabel('Time')
-    else
-        yticks([])
-        yticklabels([])
-    end
-    xticks([])
-    xticklabels([])
-    set(gca, 'FontSize',12);
-end
-saveas(fig, './figures/Figure4A.svg')
-
-% Figure 4B: plot the between trials contrast vectors:
-c = cell2mat(RSA{1}.con);
+%% Figure 5: plot the between trials contrast vectors:
+c = cell2mat(RSA.con);
 nC = size(c, 2);
 fig = figure;
 t = tiledlayout(fig, 1, nC,'TileSpacing', 'compact');
@@ -167,7 +171,18 @@ for i = 1:nC
     xticklabels([])
     set(gca, 'FontSize',12);
 end
-saveas(fig, './figures/Figure4B.svg')
+saveas(fig, './figures/Figure5.svg')
+%% Figure:
+
+% Plot overall design matrix
+fig=figure;imagesc(RSA.M.X)
+colormap gray
+ylim([0 120]);
+xlim([0 50]);
+xlabel('Covariate');
+ylabel('Measurement');
+set(gca, 'FontSize',12);
+saveas(fig, './figures/FigureX.svg')
 
 %% Figure 6:
 

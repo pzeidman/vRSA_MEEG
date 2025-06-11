@@ -24,7 +24,8 @@ function [Y, B] = spm_eeg_simulate_covariance(Xt, con, s, nmodes, nsub, CV)
 %
 %       CV      - Covariance indicator, controlling which covariance components
 %                 are active at different time points. This can be used to
-%                 turn on or off specific contrasts/effects across time.
+%                 turn on or off specific contrasts/effects across time. A
+%                 binary matrix of dimension [basis functions x contrasts].
 %
 %   OUTPUT:
 %       Y       - A cell array of size {nsub, 1}, where each cell contains a
@@ -77,16 +78,26 @@ function [Y, B] = spm_eeg_simulate_covariance(Xt, con, s, nmodes, nsub, CV)
 nXt = size(Xt, 2); % N temporal regressors
 nC  = size(con, 2); % N contrasts
 
-% Create design matrix and nuisance effect (intercept):
-X  = kron(con, Xt); X0 = ones(size(X,1),1); 
+% Create design matrix. The first nXt columns are the basis functions
+% replicated over conditions (stimuli) and multiplied by the first
+% contrast. The next nXt columns are basis functions multiplied by the 
+% second contrast, etc.
+X = kron(con, Xt); 
+
+% Nuisance effect (intercept)
+X0 = ones(size(X,1),1); 
 
 % Preallocate Y for each subject
 Y  = cell(nsub, 1);
-% Store the ground truth beta for later reference:
+
+% Store the ground truth beta for later reference
 B  = cell(nsub, 1);
 
 for i = 1:nsub
-    % functionally specialised responses, randomly distributed over voxels
+    % Functionally specialised responses, randomly distributed over voxels.
+    % A matrix of effects is randomly sampled (one row per contrast/basis 
+    % function). Matrix CV then switches on or off selected 
+    % contrast/basis function combinations.
     %----------------------------------------------------------------------
     B{i} = diag(CV(:))*randn(nC * nXt,nmodes);
 
@@ -101,4 +112,5 @@ for i = 1:nsub
     % response variable
     %----------------------------------------------------------------------
     Y{i} = X*B{i} + X0*B0 + e;
+    
 end

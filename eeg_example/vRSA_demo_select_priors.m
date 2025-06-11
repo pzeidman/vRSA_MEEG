@@ -47,6 +47,8 @@
 
 %% Settings
 % subjects = {'S1','S2','S3','S4','S5','S6','S7', 'S8', 'S9','S10'};
+
+% Load data from one example subject
 subjects = {'S1'};
 subject = 1;
 D = spm_eeg_load(sprintf('subjects/RmD_%s.mat',subjects{subject}));
@@ -126,11 +128,14 @@ title({'Average modelled ERP';'(when estimating residual variance)'});
 %% Search for optimal priors
 % Grid search on simulated data to select priors maximizing sensitivity and
 % specificity:
-tic
-[pE, pV] = spm_eeg_rsa_select_priors(c, Xt, s, nmodes, nstimuli, ...
-    length(subjects));
 
-fprintf('\n Selected Priors: \n for v=%0.2f \n Prior Expectation=%0.2f, \n Prior variance=%0.2f\n', s, pE, pV)
+% Number of subjects to use for simulation
+ns = 10;
+
+tic
+[pE, pV] = spm_eeg_rsa_select_priors(c, Xt, s, nmodes, nstimuli, ns);
+
+fprintf('\n Selected Priors: \n for std=%0.2f \n Prior Expectation=%0.2f, \n Prior variance=%0.2f\n', s, pE, pV)
 toc
 
 % Save the priors for later use:

@@ -42,6 +42,9 @@ c(:, 3) = is_face - is_body; % Body vs. face
 c(:, 4) = is_natural - is_manmade; % Natural vs. manmade
 c(:, 5) = c(:, 2) .* c(:, 3); % Interaction between body part and species
 
+% Orthonormalise contrasts
+c = spm_orth(c,'norm');
+
 % Add conditions names:
 cnames = {};
 cnames{1} = 'Animate - Inanimate';   
@@ -69,17 +72,18 @@ if exist('priors.mat', 'file')
     S.pE = priors.pE;
     S.pV = priors.pV;
 else
-    S.pE = -8;
-    S.pV = 8;
+    S.pE = -16;
+    S.pV = 1;
 end
 
 %% Run vRSA on simulated data
 
 % Simulate the data:
 CV = zeros(size(Xt, 2), size(c, 2)); % Controls which effects are on and which are off: time bin x contrast
-CV(4, 5) = 1; % Turn the 5th contrast on in the 4th time window
-CV(6, 1) = 1; % Turn the 1st contrast on in the 6th time window
-s = 0.14;
+%CV(6, 1) = 1; % Turn on the 1st contrast (animate-inanimate) in the 6th time window
+CV(6, 5) = 1; % Turn on the 5th contrast (interaction) in the 6th time window
+s = 1/1024; %1/20;
+
 Y = spm_eeg_simulate_covariance(Xt, c, s, nmodes, length(subjects), CV);
 
 nbases = size(Xt,2);
@@ -96,8 +100,39 @@ parfor s = 1:length(subjects)
 end
 % Save the results:
 save('subjects/RSAs-sim.mat','RSAs','-v7.3');
+%% Second level analysis
+
 % Run PEB / BMC
-[PEB,F] = spm_eeg_rsa_peb(RSAs, params=[1, 2, 3, 4, 5], FIR_bf=true, t=D.time');
+[PEB,F] = spm_eeg_rsa_peb(RSAs, FIR_bf=true, t=D.time');
 
 % Save the results
 save('subjects/PEB-sim.mat','F','PEB');
+%%
+% Split models into those that fitted and those that didn't
+%
+% is_bad = cell2mat(cellfun(@(x)any(isnan(diag(x.Cp))), RSAs, 'UniformOutput', false));
+% 
+% RSAs_goodbad{1} = RSAs(~is_bad); % good models
+% RSAs_goodbad{2} = RSAs(is_bad);  % bad models
+% 
+% nplots = max(cellfun(@length,RSAs_goodbad));%length(rsas);
+% 
+% ax = [];
+% for i = 1:2
+%     rsas = RSAs_goodbad{i};
+%         
+%     %betas = cellfun(@(x)x.B(30,:);
+%     
+%     figure;
+%     for j = 1:length(rsas)
+%         ax(end+1)=subplot(nplots,1,j);
+%         %bar(rsas{j}.B(30,:));
+%         %plot(rsas{j}.Y);
+%         %bar(abs(rsas{j}.B(30,:)));
+%         histogram(diag(rsas{j}.BB));
+%         
+%         linkaxes(ax);
+%     end
+%     
+% 
+% end

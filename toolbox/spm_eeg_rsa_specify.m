@@ -1,4 +1,4 @@
-function [RSAs] = spm_eeg_rsa_specify(S,D)
+function RSA = spm_eeg_rsa_specify(S,D)
 % Specifies a variational Representational Similarity Analysis (RSA) model
 %
 % Overview of vRSA
@@ -213,9 +213,8 @@ RSA.M.X0 = X0;         % null design matrix
 RSA.M.Nv = Nv;         % spatial degrees of freedom
 RSA.S    = S;          % provided options
 RSA.B    = B;          % betas
+RSA.Y    = Y;
 
 RSA.BB = RSA.B * RSA.B';
 
 RSA.M.Q = Q;
-
-RSAs{1} = RSA;

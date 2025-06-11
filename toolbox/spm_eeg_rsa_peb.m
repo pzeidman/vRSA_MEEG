@@ -41,20 +41,10 @@ function [PEB,F] = spm_eeg_rsa_peb(RSAs,options)
 %--------------------------------------------------------------------------
 arguments
     RSAs cell
-    options.params = 'all';
+    options.params = 'cond';
     options.FIR_bf (1,1) logical = false
     options.t (:, 1) {mustBeNumeric} = []
     options.doplot (1, 1) logical = true
-end
-
-% Handle empty input
-if isempty(options.t)
-    options.t = 1:RSAs{1}.M.ntimes;
-end
-if ~isfield(RSAs{1, 1}, 'cnames') | isempty(RSAs{1, 1}.cnames)
-    ncomp = length(RSAs{1, 1}.M.Q);
-    RSAs{1, 1}.cnames = arrayfun(@(x) sprintf('cond-%d', x), 1:ncomp, ...
-        'UniformOutput', false);
 end
 
 % Extract info about basis function and contrasts:
@@ -62,6 +52,17 @@ nXt = RSAs{1}.M.nXt;
 qbf = RSAs{1}.qbf;
 ncon = length(RSAs{1}.con);
 qcon = RSAs{1}.qcon;
+
+% Handle empty input
+if isempty(options.t)
+    options.t = 1:RSAs{1}.M.ntimes;
+end
+
+if ~isfield(RSAs{1, 1}, 'cnames') || isempty(RSAs{1, 1}.cnames)
+    ncomp = length(RSAs{1, 1}.M.Q);
+    RSAs{1, 1}.cnames = arrayfun(@(x) sprintf('cond-%d', x), 1:ncomp, ...
+        'UniformOutput', false);
+end
 
 %--------------------------------------------------------------------------
 % (1) Run a PEB model for each RSA

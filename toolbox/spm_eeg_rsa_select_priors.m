@@ -65,8 +65,8 @@ nC      = size(c, 2);    % Number of contrasts
 ntimes  = size(bf,1);    % Number of samples per stimulus
 
 % Define prior search space
-pEs     = -16:2:-2;
-pVs     = [2 4 8 16 32 64 128];
+pEs     = -16:2:-4;
+pVs     = [1 2 4 8 16 32 64];
 
 % Preallocate for on and off and face validity:
 F_on          = zeros(length(pVs), length(pEs));
@@ -99,11 +99,11 @@ for pE_i = 1:length(pEs)
         RSA = cell(nsub,1);
         for i_sub = 1:nsub
             % Convert the data to 3d:
-           
+            
             D = reshape(Y{i_sub}', [nmodes, ntimes, nconditions]);
+            
             % Calculate RSA for current subject
-            RSA(i_sub,:) = spm_eeg_rsa_specify(S,D);
-            %RSA(i_sub,:) = spm_eeg_rsa_estimate(RSA(i_sub,:));
+            RSA{i_sub} = spm_eeg_rsa_specify(S,D);
             RSA{i_sub} = spm_eeg_rsa_estimate(RSA{i_sub});
             
             % Calculate variance of ground-truth betas across channels (to
@@ -124,18 +124,25 @@ for pE_i = 1:length(pEs)
     end
 end
 
+% Average free energies
+F_on  = F_on ./ nsub;
+F_off = F_off ./ nsub;
+
+save('prior_optimisation','Eps_beta_corr','F_on','F_off');
+
 %% 3) Find the (pE, pV) combination that maximizes free energy for on effects while avoiding false positives
 
-% Credit for rank-ordering solution:
-% https://uk.mathworks.com/matlabcentral/answers/33296-ranking-ordering-values-with-repeats#answer_177757
+n = numel(F_on);
 
-% Sort F_on into rank order (higher F = higher rank = better)
-F_on_sorted = sort(F_on(:));
-[~, rankorder_on] = ismember(F_on(:),F_on_sorted);
+% Get rank order for F_on (higher F = higher rank = better)
+[~, sorted_idx] = sort(F_on(:));
+rankorder_on = zeros(n,1);
+rankorder_on(sorted_idx) = 1:n;
 
 % Sort F_off into rank order (lower F = higher rank = better)
-F_off_sorted = sort(F_off(:),'descend');
-[~, rankorder_off] = ismember(F_off(:),F_off_sorted);
+[~, sorted_idx] = sort(F_off(:),'descend');
+rankorder_off = zeros(n,1);
+rankorder_off(sorted_idx) = 1:n;
 
 % Find the best overall
 rank_total = rankorder_on + rankorder_off;
