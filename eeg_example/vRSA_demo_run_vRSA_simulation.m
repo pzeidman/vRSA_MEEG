@@ -82,7 +82,7 @@ end
 CV = zeros(size(Xt, 2), size(c, 2)); % Controls which effects are on and which are off: time bin x contrast
 %CV(6, 1) = 1; % Turn on the 1st contrast (animate-inanimate) in the 6th time window
 CV(6, 5) = 1; % Turn on the 5th contrast (interaction) in the 6th time window
-s = 1/1024; %1/20;
+s = 1/8; %1/20;
 
 Y = spm_eeg_simulate_covariance(Xt, c, s, nmodes, length(subjects), CV);
 
@@ -91,12 +91,14 @@ RSAs = cell(length(subjects),1);
 parfor s = 1:length(subjects)
     % Load data    
     y =  reshape(Y{s}', [nmodes, ntimes, nstimuli]);
+    % Baseline correct the data separately for each trial and channel:
+    y = y - mean(y, [2, 3]);
     % RSA settings
     settings = S;
     % Specify and estimate
     RSAs{s} = spm_eeg_rsa_specify(settings,y);    
     RSAs{s} = spm_eeg_rsa_estimate(RSAs{s});
-    %spm_eeg_rsa_review(RSAs(1), FIR_bf=true, t=D.time', data=y(:, :, :));
+    %spm_eeg_rsa_review(RSAs{s}, FIR_bf=true, t=D.time', data=y(:, :, :));
 end
 % Save the results:
 save('subjects/RSAs-sim.mat','RSAs','-v7.3');
@@ -120,9 +122,9 @@ save('subjects/PEB-sim.mat','F','PEB');
 % ax = [];
 % for i = 1:2
 %     rsas = RSAs_goodbad{i};
-%         
+% 
 %     %betas = cellfun(@(x)x.B(30,:);
-%     
+% 
 %     figure;
 %     for j = 1:length(rsas)
 %         ax(end+1)=subplot(nplots,1,j);
@@ -130,9 +132,9 @@ save('subjects/PEB-sim.mat','F','PEB');
 %         %plot(rsas{j}.Y);
 %         %bar(abs(rsas{j}.B(30,:)));
 %         histogram(diag(rsas{j}.BB));
-%         
+% 
 %         linkaxes(ax);
 %     end
-%     
+% 
 % 
 % end

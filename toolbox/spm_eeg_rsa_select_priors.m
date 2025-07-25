@@ -101,7 +101,8 @@ for pE_i = 1:length(pEs)
             % Convert the data to 3d:
             
             D = reshape(Y{i_sub}', [nmodes, ntimes, nconditions]);
-            
+            % Baseline correction:
+            D = D - mean(D, [2, 3]);
             % Calculate RSA for current subject
             RSA{i_sub} = spm_eeg_rsa_specify(S,D);
             RSA{i_sub} = spm_eeg_rsa_estimate(RSA{i_sub});
