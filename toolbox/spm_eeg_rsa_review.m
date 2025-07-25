@@ -58,14 +58,7 @@ if ~isfield(RSA, 'cnames') | isempty(RSA.cnames)
     RSA.cnames = arrayfun(@(x) sprintf('contrast-%d', x), 1:ncon, ...
         'UniformOutput', false);
 end
-if ~isempty(options.data)
-    for m = 1:RSA.M.nmodes
-        for c = 1:RSA.M.nconditions
-            options.data(m,:,c) = options.data(m,:,c) - ...
-                mean(options.data(m,:,c));
-        end
-    end
-end
+
 %--------------------------------------------------------------------------
 % Unpack info from RSA structure
 %--------------------------------------------------------------------------
