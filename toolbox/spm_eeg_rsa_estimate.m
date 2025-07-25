@@ -83,8 +83,8 @@ RSA.M.Q  = Q;          % scaled covariance components
 RSA.Ep   = Ep;         % posterior expectations
 RSA.Cp   = Cp;         % posterior covariance
 RSA.G    = G;          % variational similarity matrix
-RSA.Fa   = Fc;         % free energy (accuracy only)
-RSA.Fa   = Fc;         % free energy (complexity only)
+RSA.Fa   = Fa;         % free energy (accuracy only)
+RSA.Fc   = Fc;         % free energy (complexity only)
 RSA.F    = F;          % free energy
 
 % Supplement with model comparison against null model with no components
