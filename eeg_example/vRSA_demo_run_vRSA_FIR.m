@@ -98,8 +98,8 @@ if exist('priors.mat', 'file')
     S.pE = priors.pE;
     S.pV = priors.pV;
 else
-    S.pE = -8;
-    S.pV = 8;
+    S.pE = -16;
+    S.pV = 1;
 end
 %% Fit an examplar subject
 RSA = spm_eeg_rsa_specify(S,D);
@@ -109,7 +109,7 @@ save(sprintf('subjects/RSA_s%d.mat',subject),'RSA','-v7.3');
 spm_eeg_rsa_review(RSA, FIR_bf=true, t=D.time', data=D(:, :, :));
 %% Run first level analysis on group-level empirical data
 RSAs = cell(length(subjects), 1);
-for s = 1:length(subjects)
+parfor s = 1:length(subjects)
     disp(subjects{s});
     % Load data    
     D = spm_eeg_load(sprintf('subjects/RmD_%s.mat',subjects{s}));
