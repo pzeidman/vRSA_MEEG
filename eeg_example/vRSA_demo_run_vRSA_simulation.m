@@ -80,8 +80,8 @@ end
 
 % Simulate the data:
 CV = zeros(size(Xt, 2), size(c, 2)); % Controls which effects are on and which are off: time bin x contrast
-%CV(6, 1) = 1; % Turn on the 1st contrast (animate-inanimate) in the 6th time window
-CV(6, 5) = 1; % Turn on the 5th contrast (interaction) in the 6th time window
+CV(6, 1) = 1; % Turn on the 1st contrast (animate-inanimate) in the 6th time window
+CV(4, 5) = 1; % Turn on the 5th contrast (interaction) in the 6th time window
 s = 1/8; %1/20;
 
 Y = spm_eeg_simulate_covariance(Xt, c, s, nmodes, length(subjects), CV);
