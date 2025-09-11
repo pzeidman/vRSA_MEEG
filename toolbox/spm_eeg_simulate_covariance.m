@@ -1,4 +1,4 @@
-function [Y, B] = spm_eeg_simulate_covariance(Xt, con, s, nmodes, nsub, CV)
+function [Y, B] = spm_eeg_simulate_covariance(Xt, con, s, fs, nmodes, nsub, CV)
 % SPM_EEG_SIMULATE_COVARIANCE Simulate time-resolved data with specified covariance components.
 %
 %   Y = spm_eeg_simulate_covariance(Xt, con, s, nmodes, nsub, CV)
@@ -15,7 +15,9 @@ function [Y, B] = spm_eeg_simulate_covariance(Xt, con, s, nmodes, nsub, CV)
 %       con     - Contrast matrix specifying the relationship between different
 %                 conditions or effects to be simulated.
 %
-%       s       - Standard deviation of the observation noise.
+%       s       - Within subjet Standard deviation of the observation noise.
+%
+%       fs      - effect size
 %
 %       nmodes  - Number of "modes" or components (e.g., channels, 
 %                 principal components...) of the simulated data.
@@ -99,7 +101,12 @@ for i = 1:nsub
     % function). Matrix CV then switches on or off selected 
     % contrast/basis function combinations.
     %----------------------------------------------------------------------
-    B{i} = diag(CV(:))*randn(nC * nXt,nmodes);
+    % Draw random vectors of betas:
+    v = randn(nC * nXt,nmodes);
+    % Normalize them to Mahalanobis unit length:
+    v = cell2mat(cellfun(@(x) x/sqrt(x*pinv(K)*x'), num2cell(v, 2), 'UniformOutput', false));
+
+    B{i} = diag(CV(:))*v*(fs*s);
 
     % observation error
     %----------------------------------------------------------------------

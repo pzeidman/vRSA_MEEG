@@ -46,17 +46,16 @@
 % Version:     1.0
 
 %% Settings
-% subjects = {'S1','S2','S3','S4','S5','S6','S7', 'S8', 'S9','S10'};
+subjects = {'S1','S2','S3','S4','S5','S6','S7', 'S8', 'S9','S10'};
 
 % Load data from one example subject
-subjects = {'S1'};
-subject = 1;
+subject = 10;
 D = spm_eeg_load(sprintf('subjects/RmD_%s.mat',subjects{subject}));
 [nmodes,ntimes,nstimuli] = size(D(:,:,:));
 rng(51); % Set seed
 
 %% Create contrasts and basis set:
-
+fs = 0.88;
 % Get binary vectors for which stimuli belong to each condition
 is_human = double(contains(D.conditions,'Human'));
 is_animal = double(contains(D.conditions,'Animal'));
@@ -93,7 +92,7 @@ Xt = xBF.bf(1:size(D, 2), 2:end);
 %% Estimate variance from the data:
 s = zeros(length(subjects), 1);
 % Create the design matrix:
-X = kron(eye(nstimuli),Xt);
+X = kron(eye(nstimuli),Xt);  
 % Loop through each subject:
 for sub_i = 1:length(subjects)
     % Load the data:
@@ -133,7 +132,7 @@ title({'Average modelled ERP';'(when estimating residual variance)'});
 ns = 10;
 
 tic
-[pE, pV] = spm_eeg_rsa_select_priors(c, Xt, s, nmodes, nstimuli, ns);
+[pE, pV] = spm_eeg_rsa_select_priors(c, Xt, s, fs, nmodes, nstimuli, ns);
 
 fprintf('\n Selected Priors: \n for std=%0.2f \n Prior Expectation=%0.2f, \n Prior variance=%0.2f\n', s, pE, pV)
 toc

@@ -1,4 +1,4 @@
-function [pE, pV] = spm_eeg_rsa_select_priors(c, bf, s, nmodes, nconditions, nsub,  options)
+function [pE, pV] = spm_eeg_rsa_select_priors(c, bf, ws, fs, nmodes, nconditions, nsub,  options)
 % Grid search for optimal priors in RSA-based EEG analysis.
 %
 % This function performs a grid search over prior expectations and variances 
@@ -45,7 +45,8 @@ function [pE, pV] = spm_eeg_rsa_select_priors(c, bf, s, nmodes, nconditions, nsu
 arguments
     c                   % Contrast matrix (numeric or cell array)
     bf {mustBeNumeric}  % Basis function
-    s {mustBeNumeric}   % Standard deviation
+    ws {mustBeNumeric}   % within subject standard deviation
+    fs {mustBeNumeric}   % effect size
     nmodes  {mustBeNumeric}   % Number of channels
     nconditions  {mustBeNumeric}   % Number of conditions to simulate
     nsub   {mustBeNumeric}   % Number of subjects to simulate
@@ -65,8 +66,8 @@ nC      = size(c, 2);    % Number of contrasts
 ntimes  = size(bf,1);    % Number of samples per stimulus
 
 % Define prior search space
-pEs     = -16:2:-4;
-pVs     = [1 2 4 8 16 32 64];
+pEs     = [-64 -32 -16 -8 -4 -2];
+pVs     = [2 4 8 16 32 64];
 
 % Preallocate for on and off and face validity:
 F_on          = zeros(length(pVs), length(pEs));
@@ -78,7 +79,7 @@ CV = zeros(nXt, nC);
 ind_on = randsample(nXt * nC, ceil(nXt * nC/2));
 CV(ind_on) = 1; % Turn these effects on
 %% 1) Simulate the data:
-[Y, B_true] = spm_eeg_simulate_covariance(bf, c, s, nmodes, nsub, CV);
+[Y, B_true] = spm_eeg_simulate_covariance(bf, c, ws, fs, nmodes, nsub, CV);
 
 %% 2) Grid search for optimal priors:
 
@@ -99,7 +100,6 @@ for pE_i = 1:length(pEs)
         RSA = cell(nsub,1);
         for i_sub = 1:nsub
             % Convert the data to 3d:
-            
             D = reshape(Y{i_sub}', [nmodes, ntimes, nconditions]);
             % Baseline correction:
             D = D - mean(D, [2, 3]);
@@ -111,12 +111,9 @@ for pE_i = 1:length(pEs)
             % obtain one number per time bin per stimulus)
             vb = var(B_true{i_sub}, [], 2);
             
-            % Reshape the ground truth betas to dimension [contrasts x bf]
-            b = reshape(vb, size(CV))'; 
-            
             % Compute the correlation between estimated parameters and
             % beta variance for each contrast
-            Eps_beta_corr(pV_i, pE_i, i_sub) = corr(b(:), exp(RSA{1}.Ep.cond)');
+            Eps_beta_corr(pV_i, pE_i, i_sub) = corr(spm_vec(reshape(vb, [nXt, nC])'), exp(RSA{i_sub}.Ep.cond)');
             
             % Accumulate evidence for switched on / off effects
             F_on(pV_i, pE_i)  = F_on(pV_i, pE_i) + sum(RSA{i_sub}.logBF.cond(spm_vec(CV')==1));
@@ -219,5 +216,5 @@ xlabel("pE"); ylabel("pV"); title('Correlation between Ep and Beta variance (r)'
 colormap gray; colorbar; set(gca, 'FontSize',12);
 
 % Plot the distribution:
-spm_plot_lognormal(pE, pV)
+% spm_plot_lognormal(pE, pV)
 end
