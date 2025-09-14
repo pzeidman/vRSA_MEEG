@@ -1,52 +1,28 @@
-function spm_plot_lognormal(mu_val, sigma)
+function spm_plot_lognormal(mu_val, v)
 % PLOT_NORMAL_LOGNORMAL Plots normal and lognormal distributions
 %
 % Inputs:
-%   mu_norm   - Mean of normal distribution
-%   sigma_norm - Standard deviation of normal distribution
-%   mu_log    - Mean of lognormal distribution (log-space)
-%   sigma_log - Standard deviation of lognormal distribution (log-space)
+%   mu   - Mean of normal distribution
+%   v - Standard deviation of normal distribution
 
 % Define x range for Normal (covering 99% of probability mass)
-x_norm_min = norminv(0.025, mu_val, sigma);
-x_norm_max = norminv(0.975, mu_val, sigma);
-x_norm = linspace(x_norm_min, x_norm_max, 1000);
+x  = linspace(-30,30,1000);
+L  = spm_Npdf(x,mu_val,v);
+V  = spm_Npdf(exp(x),mu_val,v);
 
-% Compute normal PDF
-pdf_norm = normpdf(x_norm, mu_val, sigma);
-
-% Define x range for Lognormal (99% probability mass
-x_log_max = logninv(0.65, mu_val, sigma);
-x_log = linspace(-0.5, x_log_max, 1000);
-
-% Compute lognormal PDF
-pdf_log = lognpdf(x_log, mu_val, sigma);
-
-% Plot Normal Distribution
-figure('Name', 'Normal Log normal', 'Units', 'normalized', 'Position', [0.3, 0.3, 0.4, 0.4]); % Adjust figure size
+fh = figure;
+% Normal distribution:
 subplot(1,2,1);
-fill([x_norm, fliplr(x_norm)], [pdf_norm, zeros(size(pdf_norm))], 'k', 'FaceAlpha', 0.3, 'EdgeColor', 'none');
-hold on
-plot(x_norm, pdf_norm, 'k', 'LineWidth', 1);
-hold on
-plot([mu_val mu_val], [min(pdf_norm), max(pdf_norm)], 'r', 'LineWidth', 2)
-xlabel('x');
-ylabel('Probability Density');
-title(sprintf('N~(mu=%d, sig=%d)', mu_val, sigma));
-ylim([min(pdf_norm), max(pdf_norm) + (max(pdf_norm) - min(pdf_norm)) * 0.2])
-set(gca, 'box', 'off')
-axis square;
-set(gca, 'FontSize',12);
-% Plot Lognormal Distribution
+area(x,L,'FaceColor',[0.7 0.7 0.7]);
+xlabel('lambda');ylabel('Probability density');axis square;
+xline(0,':');
+set(gca,'FontSize',12);
+% Log-Normal distribution:
 subplot(1,2,2);
-fill([x_log, fliplr(x_log)], [pdf_log, zeros(size(pdf_log))], 'k', 'FaceAlpha', 0.3, 'EdgeColor', 'none');
-hold on
-plot(x_log, pdf_log, 'k', 'LineWidth', 1);
-ylim([min(pdf_log), max(pdf_log) + (max(pdf_log) - min(pdf_log)) * 0.2])
-xlabel('x');
-title(sprintf('LN~(mu=%d, sig=%d)', mu_val, sigma));
-set(gca, 'box', 'off')
-axis square;
-set(gca, 'FontSize',12);
-set(gcf, 'PaperPositionMode', 'auto'); % Adjust paper size for export
+area(exp(x),V,'FaceColor',[0.7 0.7 0.7]);
+xlabel('v');ylabel('Probability density');axis square;
+xlim([-0.5 10]);
+xline(0,':');
+set(gca,'FontSize',12);
+
 end
