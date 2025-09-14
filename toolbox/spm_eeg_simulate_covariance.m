@@ -80,6 +80,15 @@ function [Y, B] = spm_eeg_simulate_covariance(Xt, con, s, fs, nmodes, nsub, CV)
 nXt = size(Xt, 2); % N temporal regressors
 nC  = size(con, 2); % N contrasts
 
+% Normalize contrasts to be between -1 and 1:
+con_min = min(con, [], 1);
+con_max = max(con, [], 1);
+if any(con_min ~= -1) || any(con_max ~=1)
+    warning("The contrasts are not normalized to range between 0 and 1.")
+    warning("Normalizing contrasts to ensure effect size")
+    con = 2 * (con - con_min) ./ (con_max - con_min) - 1;
+end
+
 % Create design matrix. The first nXt columns are the basis functions
 % replicated over conditions (stimuli) and multiplied by the first
 % contrast. The next nXt columns are basis functions multiplied by the 
@@ -104,9 +113,9 @@ for i = 1:nsub
     % Draw random vectors of betas:
     v = randn(nC * nXt,nmodes);
     % Normalize them to Mahalanobis unit length:
-    v = cell2mat(cellfun(@(x) x/sqrt(x*pinv(K)*x'), num2cell(v, 2), 'UniformOutput', false));
+    v = cell2mat(cellfun(@(x) x/sqrt(x*pinv(eye(nmodes))*x'), num2cell(v, 2), 'UniformOutput', false));
 
-    B{i} = diag(CV(:))*v*(fs*s);
+    B{i} = diag(CV(:))*v*((fs/2)*s);
 
     % observation error
     %----------------------------------------------------------------------
