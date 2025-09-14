@@ -1,4 +1,4 @@
-function [PEB,F] = spm_eeg_rsa_peb(RSAs,options)
+function [PEB,F, BB, G,F_bfs,Pp_bfs,F_contrasts,Pp_contrasts] = spm_eeg_rsa_peb(RSAs,options)
 %==========================================================================
 % spm_eeg_rsa_peb.m
 %==========================================================================
@@ -21,8 +21,14 @@ function [PEB,F] = spm_eeg_rsa_peb(RSAs,options)
 %       .data      : Actual data for plotting/comparison (optional)
 %
 % OUTPUTS:
-%   PEB - The resulting PEB models for each RSA
-%   F   - Matrix of log-evidence comparisons for each PEB model
+%   PEB          - The resulting PEB models for each RSA
+%   F            - Matrix of log-evidence comparisons for each PEB model
+%   BB           - Observed second order effect for winning components
+%   G            - Modelled second order effect for winning components
+%   F_bfs        - Log evidence for each basis function
+%   Pp_bfs       - Posterior probability for each  basis function
+%   F_contrasts  - Log evidence for each contrast
+%   Pp_contrasts - Posterior probability for each contrast
 %
 % STEPS:
 %   1) Fit a PEB model to each RSA, specifying which parameters to include.
