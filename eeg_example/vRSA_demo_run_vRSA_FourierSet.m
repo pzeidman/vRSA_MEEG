@@ -95,8 +95,8 @@ if exist('priors.mat', 'file')
     S.pE = priors.pE;
     S.pV = priors.pV;
 else
-    S.pE = -16;
-    S.pV = 1;
+    S.pE = -8;
+    S.pV = 4;
 end
 %% Fit an examplar subject
 RSA = spm_eeg_rsa_specify(S,D);

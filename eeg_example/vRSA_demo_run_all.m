@@ -36,12 +36,13 @@
 % Version:     1.0
 
 %% Settings
-%subjects = {'S1','S2','S3','S4','S5','S6','S7', 'S8', 'S9','S10'};
-subjects = {'S1'};
+subjects = {'S1','S2','S3','S4','S5','S6','S7', 'S8', 'S9','S10'};
+% subjects = {'S1'};
 
 % Initialize SPM in EEG mode
 spm('defaults','eeg');
 spm_jobman('initcfg');
+addpath('C:\Users\alexander.lepauvre\Documents\GitHub\vRSA_MEEG\toolbox')
 %% Download the data
 % NB if this download hangs, try using your browser to downlaod the data
 % manually and save it in a folder called 'raw_data'
@@ -91,35 +92,35 @@ D = spm_eeg_load(sprintf('subjects/RmD_%s.mat',subjects{subject}));
 load('subjects/RSA_s1.mat');
 Xt = RSA.M.Xt;
 
+%% Figures:
 %% Figure 1:
 % Plot of the normal and log normal distribution with specified parame=ters
-
-mu = -16;
-v  = 1;
+mu = -8;
+v  = 4;
 x  = linspace(-30,30,1000);
 L  = spm_Npdf(x,mu,v);
 V  = spm_Npdf(exp(x),mu,v);
 
 fh = figure;
-
-subplot(1,2,1);
+tiledlayout(1,2);
+nexttile
 area(x,L,'FaceColor',[0.7 0.7 0.7]);
 xlabel('lambda');ylabel('Probability density');axis square;
 xline(0,':');
 set(gca,'FontSize',12);
-
-subplot(1,2,2);
+nexttile()
 area(exp(x),V,'FaceColor',[0.7 0.7 0.7]);
 xlabel('v');ylabel('Probability density');axis square;
-xlim([-0.5 0.5]);
+xlim([-0.5 10]);
 xline(0,':');
 set(gca,'FontSize',12);
 saveas(fh, './figures/Figure1.svg')
 
 %% Figure 3:
-
 % Figure 3A: plot the first components across trials
-fig = figure;
+fig = figure('Position', [10, 10, 725, 500]);
+tiledlayout(1,2);
+nexttile
 h = plot(D.time, squeeze(D(1, :, :)), '-o', 'MarkerSize', 1.5);
 set(h, {'MarkerFaceColor'}, get(h,'Color'));
 xline(0:D.time(3) - D.time(1):0.5, 'LineWidth', 0.5)
@@ -127,31 +128,36 @@ lbl = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14"
 t = spm_pinv(Xt) * D.time';
 for i = 1:length(t)
     text(t(i), 0.9, lbl{i}, 'HorizontalAlignment', ...
-        'center', 'FontSize', 12)
+        'center', 'FontSize', 10)
 
 end
 xlabel('Time (secs)')
 ylabel('Amplitude')
 axis square
-set(gca, 'FontSize',12);
-saveas(fig, './figures/Figure3A.svg')
-
 % Figure 3B: plot the basis functions
-fig = figure;
+nexttile
 imagesc(Xt);
-
 ticks = get(gca,'YTick');
 tick_labels = D.time(ticks);
 set(gca,'YTick',ticks,'YTickLabel',compose('%.2f',tick_labels));
-
 ylabel('Time (secs)')
 xlabel('Basis function (covariate)');
-
 colormap gray
 set(gca, 'FontSize',12);
 axis square
+saveas(fig, './figures/Figure3.svg')
 
-saveas(fig, './figures/Figure3B.svg')
+%% Figure 4
+% Plot overall design matrix
+fig=figure;imagesc(RSA.M.X)
+colormap gray
+ylim([0 120]);
+xlim([0 50]);
+xlabel('Covariate');
+ylabel('Measurement');
+set(gca, 'FontSize',12);
+saveas(fig, './figures/Figure4.svg')
+
 %% Figure 5: plot the between trials contrast vectors:
 c = cell2mat(RSA.con);
 nC = size(c, 2);
@@ -172,40 +178,230 @@ for i = 1:nC
     set(gca, 'FontSize',12);
 end
 saveas(fig, './figures/Figure5.svg')
-%% Figure:
-
-% Plot overall design matrix
-fig=figure;imagesc(RSA.M.X)
-colormap gray
-ylim([0 120]);
-xlim([0 50]);
-xlabel('Covariate');
-ylabel('Measurement');
-set(gca, 'FontSize',12);
-saveas(fig, './figures/FigureX.svg')
 
 %% Figure 6:
-
 % Plot the results of the simulation to showcase face validity:
 load('./subjects/RSAs-sim.mat')
-spm_eeg_rsa_peb(RSAs, params=[1, 2, 3, 4, 5], FIR_bf=true, t=D.time');
-
-% Save the time resolved posterior and evidence:
-fh = findobj( 'Type', 'Figure', 'Name', 'Time resolved Posterior and evidence');
-saveas(fh, './figures/Figure6ABC.svg')
-% Save the pooled evidence:
-fh = findobj( 'Type', 'Figure', 'Name', 'Group vRSA analysis');
-saveas(fh, './figures/Figure6DEF.svg')
+[PEB,F,BB,G,F_bfs,Pp_bfs,F_contrasts,Pp_contrasts] = spm_eeg_rsa_peb(RSAs, FIR_bf=true, t=D.time');
 close all
-%% Figure 6:
+% Extract info:
+ncon = length(RSAs{1}.con);
+cnames = RSAs{1}.cnames;
+nXt  = RSAs{1}.M.nXt;
+qcon = RSAs{1}.qcon;
+t = spm_pinv(Xt) * D.time';
+bin_dur = D.time(sum(Xt(:, 2))) - D.time(1);
+Ep = reshape(full(PEB.Ep), ncon, nXt);
+Cp = PEB.Cp;
+
+% Figure 6
+fig = figure('Position', [10, 10, 1000, 725]);
+tiledlayout(3, 4, 'TileSpacing','compact', 'Padding','compact');
+
+% Figure 6A
+% Plot the estimated parameters:
+nexttile([1, 2])
+ctr = 1;
+for c = 1:ncon
+    hold on
+    spm_plot_ci(Ep(c,:), diag(Cp(c == qcon, c == qcon)), t);
+    lbl{ctr}   = '';
+    lbl{ctr+1} = cnames{c};
+    ctr        = ctr + 2;
+end
+title('Estimated hyperparameters','FontSize',12);
+ylabel('v');
+xlabel('Time (sec)');
+xlim([t(1), t(end)]);
+set(gca, 'FontSize',12);
+
+% Figure 6B
+% Plot the exponentiated estimated parameters:
+nexttile([1, 2])
+for c = 1:ncon
+    hold on
+    spm_plot_ci(Ep(c,:), diag(Cp(c == qcon,c == qcon)), t, [], 'exp');
+end
+title('Estimated hyperparameters','FontSize',12);
+ylabel('Weights (exp)');
+xlabel('Time (sec)');
+xlim([t(1), t(end)]);
+set(gca, 'FontSize',12);
+
+% Figure 6C
+% Plot the log evidence per basis function and contrast
+nexttile([1, 2])
+h = plot(t, F, '-o');
+set(h, {'MarkerFaceColor'}, get(h,'Color'));
+title('Log evidence per basis function','FontSize',12);
+ylabel('log BF');
+xlabel('Time (sec)');
+xlim([t(1), t(end)]);
+legend(cnames, 'Location','best');
+set(gca, 'FontSize',12);
+
+% Figure 6D
+% Plot log evidence for each basis function
+nexttile([1, 2])
+yyaxis right
+hold on
+b = bar(t, Pp_bfs, 'FaceColor', [0.3, 0.3, 0.3]);
+b.FaceAlpha = 0.2;
+b.EdgeColor = 'none';
+ylabel('Probability');
+
+yyaxis left
+plot(t, F_bfs, 'LineWidth', 2);
+ylabel('log BF');
+xlabel('Time (sec)');
+set(gca,'FontSize',12);
+title('Log evidence over time','FontSize',12)
+ax = gca;
+ax.YAxis(2).Color = [0.3, 0.3, 0.3];
+
+% Figure 6E
+% Plot log evidence for each contrast
+nexttile
+bar(F_contrasts, 'FaceColor', [0.3, 0.3, 0.3]);
+set(gca,'XTick',1:ncon,'XTickLabel',cnames);
+ylabel('Log evidence (nats)');
+set(gca,'FontSize',12);
+title('Pooled evidence per component','FontSize',12);
+
+nexttile
+bar(Pp_contrasts, 'FaceColor', [0.3, 0.3, 0.3]);
+set(gca,'XTick',1:ncon,'XTickLabel',cnames);
+ylabel('Probability');
+set(gca,'FontSize',12);
+title('Probability per component','FontSize',12);
+
+% Figure 6E
+% Plot fitted second order model
+nexttile
+imagesc(BB);
+colormap gray;
+xlabel('Condition'); ylabel('Condition');
+set(gca,'FontSize',12);
+title('Betas (second order)','FontSize',12);
+axis square;
+nexttile
+imagesc(G);
+xlabel('Condition'); ylabel('Condition');
+set(gca,'FontSize',12);
+title('vRSA','FontSize',12);
+axis square;
+saveas(fig, './figures/Figure6.svg')
+
+%% Figure 7:
 % Same but for the real data:
 % Plot the results of the simulation to showcase face validity:
 load('./subjects/RSAs.mat')
-spm_eeg_rsa_peb(RSAs, params=[1, 2, 3, 4, 5], FIR_bf=true, t=D.time');
+[PEB,F,BB,G,F_bfs,Pp_bfs,F_contrasts,Pp_contrasts] = spm_eeg_rsa_peb(RSAs, FIR_bf=true, t=D.time');
+close all
+% Extract info:
+ncon = length(RSAs{1}.con);
+cnames = RSAs{1}.cnames;
+nXt  = RSAs{1}.M.nXt;
+qcon = RSAs{1}.qcon;
+t = spm_pinv(Xt) * D.time';
+bin_dur = D.time(sum(Xt(:, 2))) - D.time(1);
+Ep = reshape(full(PEB.Ep), ncon, nXt);
+Cp = PEB.Cp;
 
-% Save the time resolved posterior and evidence:
-fh = findobj( 'Type', 'Figure', 'Name', 'Time resolved Posterior and evidence');
-saveas(fh, './figures/Figure7ABC.svg')
-% Save the pooled evidence:
-fh = findobj( 'Type', 'Figure', 'Name', 'Group vRSA analysis');
-saveas(fh, './figures/Figure7DEF.svg')
+% Figure 7
+fig = figure('Position', [10, 10, 1000, 725]);
+tiledlayout(3, 4, 'TileSpacing','compact', 'Padding','compact');
+
+% Figure 7A
+% Plot the estimated parameters:
+nexttile([1, 2])
+ctr = 1;
+for c = 1:ncon
+    hold on
+    spm_plot_ci(Ep(c,:), diag(Cp(c == qcon, c == qcon)), t);
+    lbl{ctr}   = '';
+    lbl{ctr+1} = cnames{c};
+    ctr        = ctr + 2;
+end
+title('Estimated hyperparameters','FontSize',12);
+ylabel('v');
+xlabel('Time (sec)');
+xlim([t(1), t(end)]);
+set(gca, 'FontSize',12);
+
+% Figure 7B
+% Plot the exponentiated estimated parameters:
+nexttile([1, 2])
+for c = 1:ncon
+    hold on
+    spm_plot_ci(Ep(c,:), diag(Cp(c == qcon,c == qcon)), t, [], 'exp');
+end
+title('Estimated hyperparameters','FontSize',12);
+ylabel('Weights (exp)');
+xlabel('Time (sec)');
+xlim([t(1), t(end)]);
+set(gca, 'FontSize',12);
+
+% Figure 7C
+% Plot the log evidence per basis function and contrast
+nexttile([1, 2])
+h = plot(t, F, '-o');
+set(h, {'MarkerFaceColor'}, get(h,'Color'));
+title('Log evidence per basis function','FontSize',12);
+ylabel('log BF');
+xlabel('Time (sec)');
+xlim([t(1), t(end)]);
+legend(cnames, 'Location','best');
+set(gca, 'FontSize',12);
+
+% Figure 7D
+% Plot log evidence for each basis function
+nexttile([1, 2])
+yyaxis right
+hold on
+b = bar(t, Pp_bfs, 'FaceColor', [0.3, 0.3, 0.3]);
+b.FaceAlpha = 0.2;
+b.EdgeColor = 'none';
+ylabel('Probability');
+
+yyaxis left
+plot(t, F_bfs, 'LineWidth', 2);
+ylabel('log BF');
+xlabel('Time (sec)');
+set(gca,'FontSize',12);
+title('Log evidence over time','FontSize',12)
+ax = gca;
+ax.YAxis(2).Color = [0.3, 0.3, 0.3];
+
+% Figure 7E
+% Plot log evidence for each contrast
+nexttile
+bar(F_contrasts, 'FaceColor', [0.3, 0.3, 0.3]);
+set(gca,'XTick',1:ncon,'XTickLabel',cnames);
+ylabel('Log evidence (nats)');
+set(gca,'FontSize',12);
+title('Pooled evidence per component','FontSize',12);
+
+nexttile
+bar(Pp_contrasts, 'FaceColor', [0.3, 0.3, 0.3]);
+set(gca,'XTick',1:ncon,'XTickLabel',cnames);
+ylabel('Probability');
+set(gca,'FontSize',12);
+title('Probability per component','FontSize',12);
+
+% Figure 7E
+% Plot fitted second order model
+nexttile
+imagesc(BB);
+colormap gray;
+xlabel('Condition'); ylabel('Condition');
+set(gca,'FontSize',12);
+title('Betas (second order)','FontSize',12);
+axis square;
+nexttile
+imagesc(G);
+xlabel('Condition'); ylabel('Condition');
+set(gca,'FontSize',12);
+title('vRSA','FontSize',12);
+axis square;
+saveas(fig, './figures/Figure7.svg')

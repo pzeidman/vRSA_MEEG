@@ -92,14 +92,14 @@ Xt = xBF.bf(1:size(D, 2), 2:end);
 S = struct();
 S.Xt = Xt;
 S.con_c = mat2cell(c, size(c, 1), ones(1, size(c, 2)));
-S.con_c_names = cnames;
+S.cnames = cnames;
 if exist('priors.mat', 'file')
     load('priors.mat')
     S.pE = priors.pE;
     S.pV = priors.pV;
 else
-    S.pE = -16;
-    S.pV = 1;
+    S.pE = -8;
+    S.pV = 4;
 end
 %% Fit an examplar subject
 RSA = spm_eeg_rsa_specify(S,D);

@@ -26,6 +26,7 @@ D = spm_eeg_load(sprintf('subjects/RmD_%s.mat',subjects{subject}));
 rng(51); % Set seed
 
 %% RSA settings
+fs = 0.88; % Effect size
 % Get binary vectors of each condition:
 is_human = double(contains(D.conditions,'Human'));
 is_animal = double(contains(D.conditions,'Animal'));
@@ -66,14 +67,14 @@ Xt = xBF.bf(1:size(D, 2), 2:end);
 S = struct();
 S.Xt = Xt;
 S.con_c = mat2cell(c, size(c, 1), ones(1, size(c, 2)));
-S.con_c_names = cnames;
+S.cnames = cnames;
 if exist('priors.mat', 'file')
     load('priors.mat')
     S.pE = priors.pE;
     S.pV = priors.pV;
 else
-    S.pE = -16;
-    S.pV = 1;
+    S.pE = -8;
+    S.pV = 4;
 end
 
 %% Run vRSA on simulated data
@@ -82,13 +83,13 @@ end
 CV = zeros(size(Xt, 2), size(c, 2)); % Controls which effects are on and which are off: time bin x contrast
 CV(6, 1) = 1; % Turn on the 1st contrast (animate-inanimate) in the 6th time window
 CV(4, 5) = 1; % Turn on the 5th contrast (interaction) in the 6th time window
-s = 1/8; %1/20;
+s = 1/20;
 
-Y = spm_eeg_simulate_covariance(Xt, c, s, nmodes, length(subjects), CV);
+Y = spm_eeg_simulate_covariance(Xt, c, s, fs, nmodes, length(subjects), CV);
 
 nbases = size(Xt,2);
 RSAs = cell(length(subjects),1);
-parfor s = 1:length(subjects)
+for s = 1:length(subjects)
     % Load data    
     y =  reshape(Y{s}', [nmodes, ntimes, nstimuli]);
     % Baseline correct the data separately for each trial and channel:
@@ -98,7 +99,7 @@ parfor s = 1:length(subjects)
     % Specify and estimate
     RSAs{s} = spm_eeg_rsa_specify(settings,y);    
     RSAs{s} = spm_eeg_rsa_estimate(RSAs{s});
-    %spm_eeg_rsa_review(RSAs{s}, FIR_bf=true, t=D.time', data=y(:, :, :));
+    % spm_eeg_rsa_review(RSAs{s}, FIR_bf=true, t=D.time', data=y(:, :, :));
 end
 % Save the results:
 save('subjects/RSAs-sim.mat','RSAs','-v7.3');
