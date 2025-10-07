@@ -310,8 +310,8 @@ Ep = reshape(full(PEB.Ep), ncon, nXt);
 Cp = PEB.Cp;
 
 % Figure 7
-fig = figure('Position', [10, 10, 1000, 1200]);
-tiledlayout(4, 4, 'TileSpacing','compact', 'Padding','compact');
+fig = figure('Position', [10, 10, 1000, 725]);
+tiledlayout(3, 4, 'TileSpacing','compact', 'Padding','compact');
 
 % Figure 7A
 % Plot the estimated parameters:
@@ -406,36 +406,5 @@ xlabel('Condition'); ylabel('Condition');
 set(gca,'FontSize',12);
 title('vRSA','FontSize',12);
 axis square;
-% Figure 7F
-% Plot the first mode of the strongest contrast:
-% Create contrast:
-is_human = double(contains(D.conditions,'Human'));
-is_animal = double(contains(D.conditions,'Animal'));
-is_face = double(contains(D.conditions,'Face'));
-is_body = double(contains(D.conditions,'Body'));
-
-% Define contrasts:
-human_contrast = (is_face - is_body) & is_human; % Interaction between body part and species
-animal_contrast = (is_face - is_body) & is_animal;
-% Load subjects data:
-cond_1 = zeros(length(subjects), length(D.time));
-cond_2 = zeros(length(subjects), length(D.time));
-for i = 1:length(subjects)  
-    % Load subject's data:
-    D = spm_eeg_load(sprintf('subjects/RmD_%s.mat',subjects{i}));
-    y = D(:, :, :);
-    % Extract the data of each condition:
-    cond_1(i, :) = mean(y(1, :, human_contrast == 1), 3) - mean(y(1, :, human_contrast == 0), 3);
-    cond_2(i, :) = mean(y(1, :, animal_contrast == 1), 3) - mean(y(1, :, animal_contrast == 0), 3);
-end
-nexttile([1, 4])
-spm_plot_ci(mean(cond_1, 1), std(cond_1, 1), D.time)
-hold on
-spm_plot_ci(mean(cond_2, 1), std(cond_2, 1), D.time)
-legend(["", "Human face - Human body", "", "Animal face - Animal body"], 'Location','best');
-title('First mode of Species * Body contrast','FontSize',12);
-ylabel('Difference in activation');
-xlabel('Time (sec)');
-xlim([t(1), t(end)]);
 set(gca, 'FontSize',12);
 saveas(fig, './figures/Figure7.svg')
