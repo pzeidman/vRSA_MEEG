@@ -110,32 +110,3 @@ save('subjects/RSAs-sim.mat','RSAs','-v7.3');
 
 % Save the results
 save('subjects/PEB-sim.mat','F','PEB');
-%%
-% Split models into those that fitted and those that didn't
-%
-% is_bad = cell2mat(cellfun(@(x)any(isnan(diag(x.Cp))), RSAs, 'UniformOutput', false));
-% 
-% RSAs_goodbad{1} = RSAs(~is_bad); % good models
-% RSAs_goodbad{2} = RSAs(is_bad);  % bad models
-% 
-% nplots = max(cellfun(@length,RSAs_goodbad));%length(rsas);
-% 
-% ax = [];
-% for i = 1:2
-%     rsas = RSAs_goodbad{i};
-% 
-%     %betas = cellfun(@(x)x.B(30,:);
-% 
-%     figure;
-%     for j = 1:length(rsas)
-%         ax(end+1)=subplot(nplots,1,j);
-%         %bar(rsas{j}.B(30,:));
-%         %plot(rsas{j}.Y);
-%         %bar(abs(rsas{j}.B(30,:)));
-%         histogram(diag(rsas{j}.BB));
-% 
-%         linkaxes(ax);
-%     end
-% 
-% 
-% end
