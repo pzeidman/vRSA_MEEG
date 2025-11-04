@@ -4,9 +4,7 @@ Variational RSA for M/EEG
 ## Setup
 
 1. Download the code and put it somewhere on the MATLAB path.
-2. Download the [example dataset](https://purl.stanford.edu/xd109qh3109) and save it in a folder called "raw_data" inside the faces_houses_example directory.
-3. In MATLAB, go into the eeg_example directory and open vRSA_demo_run_all.m
-
+2. In MATLAB, go into the eeg_example directory and open vRSA_demo_run_all.m . This will download the data and run the analyses.
 
 ## Overview
 This toolbox implements variational Representational Similarity Analysis (vRSA), a Bayesian extension of traditional RSA that models trial-by-trial covariance in neural
